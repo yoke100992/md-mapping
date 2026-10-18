@@ -92,10 +92,8 @@ function MapFocusController({ selectedOutlet }) {
     const map = useMap();
     useEffect(() => {
         if (!selectedOutlet || !isValidCoordinate(selectedOutlet)) return;
-        map.flyTo([Number(selectedOutlet.latitude), Number(selectedOutlet.longitude)], Math.max(map.getZoom(), 16), {
-            animate: true,
-            duration: 0.5,
-        });
+        // Pindahkan pusat peta ke outlet terpilih tanpa mengubah level zoom.
+        map.panTo([Number(selectedOutlet.latitude), Number(selectedOutlet.longitude)], { animate: false });
     }, [map, selectedOutlet]);
     return null;
 }
@@ -422,60 +420,68 @@ function MapPage() {
                 </CardContent>
             </Card>
 
-            <Card sx={{ overflow: 'hidden' }}>
-                <Box sx={{ height: { xs: '60vh', md: '75vh' }, width: '100%', '& .leaflet-container': { height: '100%', width: '100%', background: '#e8edf1' } }}>
-                    {mapReady && validOutlets.length ? (
-                        <MapContainer center={initialCenter} zoom={12} style={{ height: '100%', width: '100%' }} preferCanvas zoomAnimation={false} markerZoomAnimation={false} fadeAnimation={false} scrollWheelZoom>
-                            <TileLayer attribution='&copy; OpenStreetMap contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" updateWhenIdle updateWhenZooming={false} keepBuffer={2} />
-                            <OutletMarkerLayer outlets={validOutlets} customColors={customColors} onSelect={handleMarkerSelect} />
-                            <MapFocusController selectedOutlet={selectedOutlet} />
-                        </MapContainer>
-                    ) : (
-                        <Box sx={{ height: '100%', minHeight: 300, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 3, textAlign: 'center', bgcolor: '#f9f9f9' }}>
-                            <LocationIcon sx={{ fontSize: 70, color: 'primary.light', mb: 2 }} />
-                            <Typography variant="h6" color="text.secondary">Tidak ada outlet dengan koordinat valid</Typography>
-                            {!filterFrontliner.length ? <Typography variant="body2" color="text.secondary">Pilih frontliner pada filter di atas untuk memuat peta.</Typography> : hasActiveFilters && <Button variant="outlined" onClick={resetFilters} sx={{ mt: 2 }}>Reset Filter</Button>}
+            <Grid container spacing={2} alignItems="stretch">
+                <Grid size={{ xs: 12, md: selectedOutlet ? 8 : 12 }}>
+                    <Card sx={{ overflow: 'hidden', height: '100%' }}>
+                        <Box sx={{ height: { xs: '60vh', md: '75vh' }, minHeight: 360, width: '100%', '& .leaflet-container': { height: '100%', width: '100%', background: '#e8edf1' } }}>
+                            {mapReady && validOutlets.length ? (
+                                <MapContainer center={initialCenter} zoom={12} style={{ height: '100%', width: '100%' }} preferCanvas zoomAnimation={false} markerZoomAnimation={false} fadeAnimation={false} scrollWheelZoom>
+                                    <TileLayer attribution='&copy; OpenStreetMap contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" updateWhenIdle updateWhenZooming={false} keepBuffer={2} />
+                                    <OutletMarkerLayer outlets={validOutlets} customColors={customColors} onSelect={handleMarkerSelect} />
+                                    <MapFocusController selectedOutlet={selectedOutlet} />
+                                </MapContainer>
+                            ) : (
+                                <Box sx={{ height: '100%', minHeight: 360, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 3, textAlign: 'center', bgcolor: '#f9f9f9' }}>
+                                    <LocationIcon sx={{ fontSize: 70, color: 'primary.light', mb: 2 }} />
+                                    <Typography variant="h6" color="text.secondary">Tidak ada outlet dengan koordinat valid</Typography>
+                                    {!filterFrontliner.length ? <Typography variant="body2" color="text.secondary">Pilih frontliner pada filter di atas untuk memuat peta.</Typography> : hasActiveFilters && <Button variant="outlined" onClick={resetFilters} sx={{ mt: 2 }}>Reset Filter</Button>}
+                                </Box>
+                            )}
                         </Box>
-                    )}
-                </Box>
-            </Card>
+                    </Card>
+                </Grid>
 
-            {selectedOutlet && (
-                <Card sx={{ mt: 3 }}><CardContent>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                        <Typography variant="h6" fontWeight={600}>Detail Outlet</Typography>
-                        <IconButton onClick={() => setSelectedOutlet(null)} size="small"><CloseIcon /></IconButton>
-                    </Box>
-                    <Typography><b>Nama:</b> {selectedOutlet.outletName || '-'}</Typography>
-                    <Typography variant="body2" color="text.secondary">ID: {selectedOutlet.outletId || '-'} | Account: {selectedOutlet.account || '-'}</Typography>
-                    <Typography variant="body2" sx={{ mt: 1 }}><b>Alamat:</b> {selectedOutlet.address || '-'}</Typography>
-                    <Grid container spacing={2} sx={{ mt: 1 }}>
-                        <Grid size={{ xs: 12, sm: 6 }}>
-                            <FormControl fullWidth size="small">
-                                <InputLabel id="map-edit-frontliner-label">Frontliner</InputLabel>
-                                <Select labelId="map-edit-frontliner-label" label="Frontliner" value={editForm.frontliner || ''}
-                                    onChange={(e) => setEditForm((prev) => ({ ...prev, frontliner: e.target.value }))}>
-                                    {safeFrontliners.map((fl) => <MenuItem key={fl} value={fl}>{fl}</MenuItem>)}
-                                </Select>
-                            </FormControl>
-                        </Grid>
-                        <Grid size={{ xs: 12, sm: 6 }}>
-                            <FormControl fullWidth size="small">
-                                <InputLabel id="map-edit-rtg-label">RTG / Freezer</InputLabel>
-                                <Select labelId="map-edit-rtg-label" label="RTG / Freezer" value={editForm.rtgFreezer || 'None'}
-                                    onChange={(e) => setEditForm((prev) => ({ ...prev, rtgFreezer: e.target.value }))}>
-                                    {RTG_LABELS.map((label) => <MenuItem key={label} value={label}>{label}</MenuItem>)}
-                                </Select>
-                            </FormControl>
-                        </Grid>
+                {selectedOutlet && (
+                    <Grid size={{ xs: 12, md: 4 }}>
+                        <Card sx={{ height: '100%', minHeight: { md: 360 } }}>
+                            <CardContent>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                                    <Typography variant="h6" fontWeight={600}>Edit Outlet</Typography>
+                                    <IconButton onClick={() => setSelectedOutlet(null)} size="small" aria-label="Tutup detail outlet"><CloseIcon /></IconButton>
+                                </Box>
+                                <Typography variant="subtitle1" fontWeight={700}>{selectedOutlet.outletName || 'Outlet tanpa nama'}</Typography>
+                                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>ID: {selectedOutlet.outletId || '-'} | Account: {selectedOutlet.account || '-'}</Typography>
+                                <Typography variant="body2" sx={{ mb: 2, overflowWrap: 'anywhere' }}><b>Alamat:</b> {selectedOutlet.address || '-'}</Typography>
+                                <Grid container spacing={2}>
+                                    <Grid size={12}>
+                                        <FormControl fullWidth size="small">
+                                            <InputLabel id="map-edit-frontliner-label">Frontliner</InputLabel>
+                                            <Select labelId="map-edit-frontliner-label" label="Frontliner" value={editForm.frontliner || ''}
+                                                onChange={(e) => setEditForm((prev) => ({ ...prev, frontliner: e.target.value }))}>
+                                                {safeFrontliners.map((fl) => <MenuItem key={fl} value={fl}>{fl}</MenuItem>)}
+                                            </Select>
+                                        </FormControl>
+                                    </Grid>
+                                    <Grid size={12}>
+                                        <FormControl fullWidth size="small">
+                                            <InputLabel id="map-edit-rtg-label">RTG / Freezer</InputLabel>
+                                            <Select labelId="map-edit-rtg-label" label="RTG / Freezer" value={editForm.rtgFreezer || 'None'}
+                                                onChange={(e) => setEditForm((prev) => ({ ...prev, rtgFreezer: e.target.value }))}>
+                                                {RTG_LABELS.map((label) => <MenuItem key={label} value={label}>{label}</MenuItem>)}
+                                            </Select>
+                                        </FormControl>
+                                    </Grid>
+                                </Grid>
+                                <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                    <Button variant="contained" fullWidth onClick={handleSaveMapFields}>Simpan Frontliner / RTG</Button>
+                                    <Button variant="outlined" startIcon={<EditIcon />} fullWidth onClick={() => handleEdit(selectedOutlet)}>Edit Outlet Lainnya</Button>
+                                    <Button variant="outlined" color="error" fullWidth onClick={handleDelete}>Hapus Outlet</Button>
+                                </Box>
+                            </CardContent>
+                        </Card>
                     </Grid>
-                    <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                        <Button variant="contained" onClick={handleSaveMapFields}>Simpan Frontliner / RTG</Button>
-                        <Button variant="outlined" startIcon={<EditIcon />} onClick={() => handleEdit(selectedOutlet)}>Edit Outlet Lainnya</Button>
-                        <Button variant="outlined" color="error" onClick={handleDelete}>Hapus Outlet</Button>
-                    </Box>
-                </CardContent></Card>
-            )}
+                )}
+            </Grid>
 
             <Dialog open={Boolean(editDialog)} onClose={() => setEditDialog(null)} maxWidth="sm" fullWidth>
                 <DialogTitle sx={{ bgcolor: 'primary.main', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
