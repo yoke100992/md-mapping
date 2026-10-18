@@ -53,35 +53,38 @@ const makePinIcon = (color) => L.divIcon({
     popupAnchor: [0, -20],
 });
 
-// Leaflet manages markers outside React. This avoids rendering thousands of React Marker components.
+// Leaflet manages markers outside React. Marker objects are created in small batches,
+// then handed to MarkerCluster ONCE so clustering does not repeatedly re-process prior batches.
 const ClusteredOutletLayer = memo(function ClusteredOutletLayer({ outlets, customColors, onSelect }) {
     const map = useMap();
 
     useEffect(() => {
         if (!map || !L.markerClusterGroup) return undefined;
 
-        // Penting: pembuatan marker dilakukan bertahap agar browser tidak freeze.
-        // chunkedLoading Leaflet hanya membagi proses addLayers, bukan loop pembuatan marker.
         const cluster = L.markerClusterGroup({
             ...CLUSTER_OPTIONS,
-            chunkedLoading: false,
+            // Let MarkerCluster split the expensive clustering/add operation into chunks.
+            chunkedLoading: true,
+            chunkInterval: 40,
+            chunkDelay: 30,
             animate: false,
             animateAddingMarkers: false,
         });
-        const icons = new Map();
+
         const valid = outlets.filter(isValidCoordinate);
-        const batchSize = 60;
+        const icons = new Map();
+        const markers = [];
+        const batchSize = 40;
         let index = 0;
         let timerId = null;
         let cancelled = false;
 
         map.addLayer(cluster);
 
-        const addNextBatch = () => {
+        const buildNextBatch = () => {
             if (cancelled) return;
-            const batch = [];
-            const stopAt = Math.min(index + batchSize, valid.length);
 
+            const stopAt = Math.min(index + batchSize, valid.length);
             for (; index < stopAt; index += 1) {
                 const outlet = valid[index];
                 const lat = Number(outlet.latitude);
@@ -94,38 +97,26 @@ const ClusteredOutletLayer = memo(function ClusteredOutletLayer({ outlets, custo
                     keyboard: false,
                     riseOnHover: false,
                 });
-                const outletName = escapeHTML(outlet.outletName || 'Outlet tanpa nama');
-                const outletId = escapeHTML(outlet.outletId || '-');
-                const account = escapeHTML(outlet.account || '-');
-                const frontliner = escapeHTML(outlet.frontliner || 'Belum ditentukan');
-                const address = escapeHTML(outlet.address || '-');
-                const rtg = escapeHTML(outlet.rtgFreezer || 'None');
 
-                marker.bindPopup(
-                    `<div style="min-width:180px;max-width:240px;font-family:Arial,sans-serif">` +
-                    `<b style="font-size:14px">${outletName}</b><br/>` +
-                    `<span style="color:#64748b;font-size:12px">ID: ${outletId}</span><br/>` +
-                    `<div style="margin-top:6px;font-size:12px">Account: ${account}</div>` +
-                    `<div style="font-size:12px">Frontliner: ${frontliner}</div>` +
-                    `<div style="font-size:12px">RTG: ${rtg}</div>` +
-                    `<div style="margin-top:5px;font-size:12px;white-space:normal">${address}</div>` +
-                    `<div style="margin-top:7px;color:#64748b;font-size:11px">Klik marker untuk membuka detail outlet di bawah peta.</div>` +
-                    `</div>`,
-                    { autoPan: false, closeButton: true }
-                );
+                // Tidak menggunakan popup. Klik marker hanya memilih outlet,
+                // lalu detail ditampilkan di panel bawah peta.
                 marker.on('click', () => onSelect(outlet));
-                batch.push(marker);
+
+                markers.push(marker);
             }
 
-            if (batch.length && !cancelled) cluster.addLayers(batch);
             if (index < valid.length && !cancelled) {
-                // Beri browser kesempatan menggambar UI di antara batch.
-                timerId = window.setTimeout(addNextBatch, 0);
+                // Give the browser time to paint between marker-construction batches.
+                timerId = window.setTimeout(buildNextBatch, 0);
+                return;
             }
+
+            // Critical: only one addLayers call. Repeated addLayers calls can make clustering
+            // progressively more expensive and freeze the browser on 500–2,000 outlets.
+            if (!cancelled && markers.length) cluster.addLayers(markers);
         };
 
-        // Mulai setelah render awal peta selesai.
-        timerId = window.setTimeout(addNextBatch, 0);
+        timerId = window.setTimeout(buildNextBatch, 0);
 
         return () => {
             cancelled = true;
@@ -137,6 +128,18 @@ const ClusteredOutletLayer = memo(function ClusteredOutletLayer({ outlets, custo
 
     return null;
 });
+
+function MapFocusController({ selectedOutlet }) {
+    const map = useMap();
+    useEffect(() => {
+        if (!selectedOutlet || !isValidCoordinate(selectedOutlet)) return;
+        map.flyTo([Number(selectedOutlet.latitude), Number(selectedOutlet.longitude)], Math.max(map.getZoom(), 16), {
+            animate: true,
+            duration: 0.5,
+        });
+    }, [map, selectedOutlet]);
+    return null;
+}
 
 function MapPage() {
     const {
@@ -372,6 +375,26 @@ function MapPage() {
                                 </Select>
                             </FormControl>
                         </Grid>
+                        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                            <FormControl fullWidth size="small">
+                                <InputLabel id="map-outlet-select-label">Pilih Outlet</InputLabel>
+                                <Select
+                                    labelId="map-outlet-select-label"
+                                    label="Pilih Outlet"
+                                    value={selectedOutlet ? String(selectedOutlet.id ?? selectedOutlet.outletId ?? '') : ''}
+                                    onChange={(e) => {
+                                        const chosen = filteredOutlets.find((o) => String(o.id ?? o.outletId ?? '') === String(e.target.value));
+                                        setSelectedOutlet(chosen || null);
+                                    }}
+                                >
+                                    <MenuItem value=""><em>Pilih outlet...</em></MenuItem>
+                                    {filteredOutlets.map((outlet, index) => {
+                                        const outletKey = String(outlet.id ?? outlet.outletId ?? `${outlet.outletName || 'outlet'}-${index}`);
+                                        return <MenuItem key={outletKey} value={outletKey}>{outlet.outletName || 'Outlet tanpa nama'} — {outlet.outletId || outlet.id || '-'}</MenuItem>;
+                                    })}
+                                </Select>
+                            </FormControl>
+                        </Grid>
                     </Grid>
                     <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
                         <Typography variant="body2" fontWeight={600}>Frontliner:</Typography>
@@ -391,6 +414,7 @@ function MapPage() {
                         <MapContainer center={initialCenter} zoom={12} style={{ height: '100%', width: '100%' }} preferCanvas zoomAnimation={false} markerZoomAnimation={false} fadeAnimation={false} scrollWheelZoom>
                             <TileLayer attribution='&copy; OpenStreetMap contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" updateWhenIdle updateWhenZooming={false} keepBuffer={2} />
                             <ClusteredOutletLayer outlets={validOutlets} customColors={customColors} onSelect={handleMarkerSelect} />
+                            <MapFocusController selectedOutlet={selectedOutlet} />
                         </MapContainer>
                     ) : (
                         <Box sx={{ height: '100%', minHeight: 300, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 3, textAlign: 'center', bgcolor: '#f9f9f9' }}>
