@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+﻿import React, { useState, useRef } from 'react';
 import {
     Card, CardContent, Typography, Button, Box, Alert, LinearProgress,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
@@ -161,7 +161,7 @@ const UploadPage = () => {
                     Data Outlet
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                    {outlets.length} outlet aktif � Kelola, edit, atau hapus outlet
+                    {outlets.length} outlet aktif · Kelola, edit, atau hapus outlet
                 </Typography>
             </Box>
 
@@ -244,7 +244,7 @@ const UploadPage = () => {
                     <TableHead>
                         <TableRow>
                             {[
-                                
+
                                 'Frontliner',
                                 'Outlet ID',
                                 'Outlet Name',

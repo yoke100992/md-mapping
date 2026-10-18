@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, CssBaseline, Box, Typography } from '@mui/material';
 import { DataProvider } from './context/DataContext';
@@ -30,9 +30,14 @@ function App() {
                         <Routes>
                             <Route path="/" element={<DashboardPage />} />
                             <Route path="/manage" element={<ManageOutletsPage />} />
+<<<<<<< HEAD
                             <Route path="/map" element={<MapPage />} />
                             <Route path="/upload" element={<UploadPage />} />
                             <Route path="/edit" element={<EditPage />} />
+=======
+                            <Route path="/map" element={<MapPage />} />  
+
+>>>>>>> cb6cb60bc73294845626048661d75b574a6595a3
                             <Route path="/template" element={<TemplatePage />} />
                             <Route path="*" element={<Navigate to="/" replace />} />
                         </Routes>
