@@ -16,10 +16,6 @@ import { useData } from '../context/DataContext';
 import { getFrontlinerColor, RTG_LABELS, COLOR_PICKER_PALETTE } from '../utils/constants';
 
 const DEFAULT_CENTER = [-6.9175, 107.6191];
-const EMPTY_FILTER_VALUE = '__EMPTY__';
-const isEmptyValue = (value) => value === null || value === undefined || String(value).trim() === '';
-const getDynamicFilterValue = (value) => isEmptyValue(value) ? EMPTY_FILTER_VALUE : String(value).trim();
-const formatColumnLabel = (key) => String(key).replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase());
 const isValidCoordinate = (outlet) => {
     if (!outlet) return false;
     const latRaw = outlet.latitude;
@@ -115,9 +111,6 @@ function MapPage() {
     const [loadingMap, setLoadingMap] = useState(false);
     const [filterAccount, setFilterAccount] = useState([]);
     const [filterRTG, setFilterRTG] = useState([]);
-    const [dynamicFilterColumn, setDynamicFilterColumn] = useState('');
-    const [dynamicFilterValues, setDynamicFilterValues] = useState([]);
-    const [visibleColumns, setVisibleColumns] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [selectedOutlet, setSelectedOutlet] = useState(null);
@@ -139,28 +132,12 @@ function MapPage() {
     // Filter peta hanya menggunakan outlet milik frontliner yang dipilih.
     const mapOutlets = useMemo(() => (Array.isArray(frontlinerOutlets) ? frontlinerOutlets : []).filter(Boolean), [frontlinerOutlets]);
     const accounts = useMemo(() => [...new Set(mapOutlets.map((o) => String(o.account ?? '').trim()).filter(Boolean))].sort(), [mapOutlets]);
-    const availableColumns = useMemo(() => {
-        const keys = new Set();
-        mapOutlets.forEach((outlet) => Object.keys(outlet || {}).forEach((key) => keys.add(key)));
-        return [...keys].sort();
-    }, [mapOutlets]);
-    const dynamicFilterOptions = useMemo(() => {
-        if (!dynamicFilterColumn) return [];
-        const values = new Set(mapOutlets.map((outlet) => getDynamicFilterValue(outlet[dynamicFilterColumn])));
-        return [...values].sort((a, b) => a === EMPTY_FILTER_VALUE ? -1 : b === EMPTY_FILTER_VALUE ? 1 : a.localeCompare(b));
-    }, [mapOutlets, dynamicFilterColumn]);
-    const columnsToShow = useMemo(() => {
-        if (!visibleColumns.length) return availableColumns;
-        return visibleColumns.filter((key) => availableColumns.includes(key));
-    }, [availableColumns, visibleColumns]);
 
     const filteredOutlets = useMemo(() => {
         return mapOutlets.filter((o) => {
             if (filterFrontliner.length && !filterFrontliner.includes(o.frontliner)) return false;
             if (filterAccount.length && !filterAccount.includes(o.account)) return false;
-            const rtgValue = isEmptyValue(o.rtgFreezer) ? EMPTY_FILTER_VALUE : String(o.rtgFreezer).trim();
-            if (filterRTG.length && !filterRTG.includes(rtgValue)) return false;
-            if (dynamicFilterColumn && dynamicFilterValues.length && !dynamicFilterValues.includes(getDynamicFilterValue(o[dynamicFilterColumn]))) return false;
+            if (filterRTG.length && !filterRTG.includes(o.rtgFreezer || 'None')) return false;
             if (debouncedSearch) {
                 const name = String(o.outletName ?? '').toLowerCase();
                 const id = String(o.outletId ?? '').toLowerCase();
@@ -169,7 +146,7 @@ function MapPage() {
             }
             return true;
         });
-    }, [mapOutlets, filterFrontliner, filterAccount, filterRTG, dynamicFilterColumn, dynamicFilterValues, debouncedSearch]);
+    }, [mapOutlets, filterFrontliner, filterAccount, filterRTG, debouncedSearch]);
 
     const validOutlets = useMemo(() => mapReady ? filteredOutlets.filter(isValidCoordinate) : [], [filteredOutlets, mapReady]);
     const invalidCount = filteredOutlets.length - validOutlets.length;
@@ -207,8 +184,6 @@ function MapPage() {
         // Pertahankan filter frontliner aktif agar tidak memuat semua outlet sekaligus.
         setFilterAccount([]);
         setFilterRTG([]);
-        setDynamicFilterColumn('');
-        setDynamicFilterValues([]);
         setSearchQuery('');
         setDebouncedSearch('');
         setSelectedOutlet(null);
@@ -261,7 +236,7 @@ function MapPage() {
             setLoadingMap(false);
         }
     };
-    const hasActiveFilters = filterFrontliner.length || filterAccount.length || filterRTG.length || dynamicFilterValues.length || searchQuery.trim();
+    const hasActiveFilters = filterFrontliner.length || filterAccount.length || filterRTG.length || searchQuery.trim();
 
     const getRTGIcon = (rtg) => {
         if (rtg === 'Freezer') return <AcUnit fontSize="small" sx={{ color: '#2196F3' }} />;
@@ -408,45 +383,7 @@ function MapPage() {
                                             </Box>
                                         ) : 'Semua'
                                     }>
-                                    {[...RTG_LABELS, EMPTY_FILTER_VALUE].map((label) => <MenuItem key={label} value={label}><Checkbox checked={filterRTG.includes(label)} size="small" />{label === EMPTY_FILTER_VALUE ? <Box sx={{ ml: 1 }}>Data Kosong</Box> : <>{getRTGIcon(label)}<Box sx={{ ml: 1 }}>{label}</Box></>}</MenuItem>)}
-                                </Select>
-                            </FormControl>
-                        </Grid>
-                        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                            <FormControl fullWidth size="small">
-                                <InputLabel id="dynamic-filter-column-label">Filter Kolom</InputLabel>
-                                <Select labelId="dynamic-filter-column-label" value={dynamicFilterColumn} label="Filter Kolom"
-                                    onChange={(e) => { setDynamicFilterColumn(e.target.value); setDynamicFilterValues([]); }}>
-                                    <MenuItem value=""><em>Tidak digunakan</em></MenuItem>
-                                    {availableColumns.map((key) => <MenuItem key={key} value={key}>{formatColumnLabel(key)}</MenuItem>)}
-                                </Select>
-                            </FormControl>
-                        </Grid>
-                        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                            <FormControl fullWidth size="small" disabled={!dynamicFilterColumn}>
-                                <InputLabel id="dynamic-filter-values-label">Nilai Kolom</InputLabel>
-                                <Select multiple labelId="dynamic-filter-values-label" value={dynamicFilterValues} label="Nilai Kolom"
-                                    onChange={(e) => setDynamicFilterValues(e.target.value)}
-                                    renderValue={(values) => values.map((v) => v === EMPTY_FILTER_VALUE ? 'Data Kosong' : v).join(', ')}>
-                                    {dynamicFilterOptions.map((value) => <MenuItem key={value} value={value}>
-                                        <Checkbox checked={dynamicFilterValues.includes(value)} size="small" />
-                                        {value === EMPTY_FILTER_VALUE ? 'Data Kosong' : value}
-                                    </MenuItem>)}
-                                </Select>
-                            </FormControl>
-                        </Grid>
-                        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                            <FormControl fullWidth size="small">
-                                <InputLabel id="visible-columns-label">Kolom Detail</InputLabel>
-                                <Select multiple labelId="visible-columns-label" value={columnsToShow} label="Kolom Detail"
-                                    onChange={(e) => setVisibleColumns(e.target.value)}
-                                    renderValue={(values) => values.length === availableColumns.length ? 'Semua kolom' : `${values.length} kolom dipilih`}>
-                                    <MenuItem value="__SELECT_ALL__" onClick={() => setVisibleColumns(availableColumns)}>
-                                        <Checkbox checked={columnsToShow.length === availableColumns.length} size="small" />Pilih semua kolom
-                                    </MenuItem>
-                                    {availableColumns.map((key) => <MenuItem key={key} value={key}>
-                                        <Checkbox checked={columnsToShow.includes(key)} size="small" />{formatColumnLabel(key)}
-                                    </MenuItem>)}
+                                    {RTG_LABELS.map((label) => <MenuItem key={label} value={label}><Checkbox checked={filterRTG.includes(label)} size="small" />{getRTGIcon(label)}<Box sx={{ ml: 1 }}>{label}</Box></MenuItem>)}
                                 </Select>
                             </FormControl>
                         </Grid>
@@ -488,8 +425,12 @@ function MapPage() {
                     <Card sx={{ overflow: 'hidden', height: '100%' }}>
                         <Box sx={{ height: { xs: '60vh', md: '75vh' }, minHeight: 360, width: '100%', '& .leaflet-container': { height: '100%', width: '100%', background: '#e8edf1' } }}>
                             {mapReady && validOutlets.length ? (
+
                                 <MapContainer key={filterFrontliner.join("|")} center={initialCenter} zoom={12} style={{ height: '100%', width: '100%' }} preferCanvas zoomAnimation={false} markerZoomAnimation={false} fadeAnimation={false} scrollWheelZoom>
-                                    <TileLayer attribution='© OpenStreetMap contributors' url="[https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png](https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png)" updateWhenIdle updateWhenZooming={false} keepBuffer={2} />
+
+                                <MapContainer center={initialCenter} zoom={12} style={{ height: '100%', width: '100%' }} preferCanvas zoomAnimation={false} markerZoomAnimation={false} fadeAnimation={false} scrollWheelZoom>
+
+                                    <TileLayer attribution='&copy; OpenStreetMap contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" updateWhenIdle updateWhenZooming={false} keepBuffer={2} />
                                     <OutletMarkerLayer outlets={validOutlets} customColors={customColors} onSelect={handleMarkerSelect} />
                                     <MapFocusController selectedOutlet={selectedOutlet} />
                                 </MapContainer>
@@ -515,15 +456,6 @@ function MapPage() {
                                 <Typography variant="subtitle1" fontWeight={700}>{selectedOutlet.outletName || 'Outlet tanpa nama'}</Typography>
                                 <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>ID: {selectedOutlet.outletId || '-'} | Account: {selectedOutlet.account || '-'}</Typography>
                                 <Typography variant="body2" sx={{ mb: 2, overflowWrap: 'anywhere' }}><b>Alamat:</b> {selectedOutlet.address || '-'}</Typography>
-                                <Box sx={{ mb: 2, maxHeight: 260, overflow: 'auto', border: '1px solid', borderColor: 'divider', borderRadius: 1, p: 1.5 }}>
-                                    <Typography variant="subtitle2" sx={{ mb: 1 }}>Kolom Data Outlet</Typography>
-                                    {columnsToShow.map((key) => (
-                                        <Box key={key} sx={{ display: 'grid', gridTemplateColumns: 'minmax(100px, 40%) minmax(0, 1fr)', gap: 1, py: 0.5, borderBottom: '1px solid', borderColor: 'divider' }}>
-                                            <Typography variant="caption" fontWeight={700}>{formatColumnLabel(key)}</Typography>
-                                            <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>{isEmptyValue(selectedOutlet[key]) ? '— (Data Kosong)' : String(selectedOutlet[key])}</Typography>
-                                        </Box>
-                                    ))}
-                                </Box>
                                 <Grid container spacing={2}>
                                     <Grid size={12}>
                                         <FormControl fullWidth size="small">
