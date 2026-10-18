@@ -10,12 +10,7 @@ import {
     Chip,
     CircularProgress,
     Divider,
-    FormControl,
     Grid,
-    InputLabel,
-    MenuItem,
-    Paper,
-    Select,
     Stack,
     Table,
     TableBody,
@@ -25,6 +20,7 @@ import {
     TableRow,
     TextField,
     Typography,
+    Paper,
 } from '@mui/material';
 
 import {
@@ -144,13 +140,13 @@ const EditPage = () => {
         ];
     }, [customColumns]);
 
-    // Extract unique values untuk setiap field
+    // Extract unique values untuk setiap field (untuk opsi Autocomplete)
     const filterOptions = useMemo(() => {
         const options = {
             frontliner: frontliners,
             account: [],
             district: [],
-            rtgFreezer: RTG_LABELS,
+            rtgFreezer: [...RTG_LABELS],
         };
 
         // Tambahkan custom columns
@@ -180,7 +176,7 @@ const EditPage = () => {
             });
         });
 
-        // Sort semua options
+        // Sort semua options (kecuali rtgFreezer & frontliner yang sudah punya urutan tertentu)
         Object.keys(options).forEach((key) => {
             if (key !== 'rtgFreezer' && key !== 'frontliner') {
                 options[key].sort((a, b) => a.localeCompare(b, 'id'));
@@ -190,10 +186,9 @@ const EditPage = () => {
         return options;
     }, [outlets, frontliners, customColumns]);
 
-    // Filter outlets berdasarkan semua filter yang aktif (independen)
+    // Filter outlets berdasarkan semua filter yang aktif (independen / logika AND)
     const filteredOutlets = useMemo(() => {
         return outlets.filter((outlet) => {
-            // Check setiap filter - semua independen
             const matchesFrontliner =
                 filters.frontliner.length === 0 ||
                 filters.frontliner.includes(normalize(outlet.frontliner));
@@ -252,18 +247,18 @@ const EditPage = () => {
     // Hitung jumlah filter aktif
     const activeFilterCount = useMemo(() => {
         let count = 0;
-        allFilterFields.forEach((field) => {
-            if (filters[field] && filters[field].length > 0) {
+        allFilterFields.forEach((f) => {
+            if (filters[f] && filters[f].length > 0) {
                 count++;
             }
         });
         return count;
     }, [filters, allFilterFields]);
 
-    const handleFilterChange = (field, values) => {
+    const handleFilterChange = (fieldName, values) => {
         setFilters((prev) => ({
             ...prev,
-            [field]: values || [],
+            [fieldName]: values || [],
         }));
         setSelectedIds([]);
         setError('');
@@ -272,13 +267,11 @@ const EditPage = () => {
 
     const toggleOutlet = (id) => {
         const key = String(id);
-
         setSelectedIds((current) =>
             current.includes(key)
                 ? current.filter((item) => item !== key)
                 : [...current, key]
         );
-
         setSuccess('');
     };
 
@@ -286,12 +279,8 @@ const EditPage = () => {
         setSelectedIds((current) => {
             const visible = new Set(visibleIds);
             const outside = current.filter((id) => !visible.has(id));
-
-            return checked
-                ? [...outside, ...visibleIds]
-                : outside;
+            return checked ? [...outside, ...visibleIds] : outside;
         });
-
         setSuccess('');
     };
 
@@ -304,27 +293,27 @@ const EditPage = () => {
     };
 
     const resetFilters = () => {
-        setFilters({
+        const resetState = {
             frontliner: [],
             account: [],
             district: [],
             rtgFreezer: [],
-            ...Object.fromEntries(customColumns.map((col) => [col, []])),
+        };
+        customColumns.forEach((col) => {
+            resetState[col] = [];
         });
+        setFilters(resetState);
         setSelectedIds([]);
         setError('');
         setSuccess('');
     };
 
     const getTarget = () => {
-        // Jika ada checklist, hanya outlet yang dicentang yang diubah.
-        // Jika tidak ada checklist, semua hasil filter yang diubah.
         if (selectedIds.length > 0) {
             return filteredOutlets.filter((outlet) =>
                 selectedIds.includes(String(outlet.id))
             );
         }
-
         return filteredOutlets;
     };
 
@@ -350,14 +339,10 @@ const EditPage = () => {
                 return;
             }
 
-            const normalizedName = columnName
-                .toLowerCase()
-                .replace(/[^a-z0-9]/g, '');
+            const normalizedName = columnName.toLowerCase().replace(/[^a-z0-9]/g, '');
 
             if (RESERVED_FIELDS.has(normalizedName)) {
-                setError(
-                    'Nama kolom tersebut sudah digunakan oleh field utama. Gunakan nama lain.'
-                );
+                setError('Nama kolom tersebut sudah digunakan oleh field utama. Gunakan nama lain.');
                 return;
             }
 
@@ -365,23 +350,16 @@ const EditPage = () => {
             fieldLabel = columnName;
 
             if (!targetField) {
-                setError(
-                    'Nama kolom tidak valid. Gunakan huruf atau angka.'
-                );
+                setError('Nama kolom tidak valid. Gunakan huruf atau angka.');
                 return;
             }
 
             const existingColumn = customColumns.includes(targetField);
-
             if (existingColumn) {
                 fieldLabel = getColumnLabel(targetField);
             }
         } else {
-            fieldLabel =
-                FIELD_OPTIONS.find(
-                    (item) => item.value === field
-                )?.label ||
-                getColumnLabel(field);
+            fieldLabel = FIELD_OPTIONS.find((item) => item.value === field)?.label || getColumnLabel(field);
         }
 
         if (!value) {
@@ -389,13 +367,8 @@ const EditPage = () => {
             return;
         }
 
-        if (
-            targetField === 'rtgFreezer' &&
-            !RTG_LABELS.includes(value)
-        ) {
-            setError(
-                `Pilihan harus salah satu dari: ${RTG_LABELS.join(', ')}.`
-            );
+        if (targetField === 'rtgFreezer' && !RTG_LABELS.includes(value)) {
+            setError(`Pilihan harus salah satu dari: ${RTG_LABELS.join(', ')}.`);
             return;
         }
 
@@ -406,9 +379,7 @@ const EditPage = () => {
             return;
         }
 
-        const isNewColumn =
-            field === NEW_COLUMN &&
-            !customColumns.includes(targetField);
+        const isNewColumn = field === NEW_COLUMN && !customColumns.includes(targetField);
 
         const confirmed = window.confirm(
             `${isNewColumn ? 'TAMBAH KOLOM DAN TERAPKAN PERUBAHAN' : 'KONFIRMASI PERUBAHAN'}\n\n` +
@@ -416,11 +387,9 @@ const EditPage = () => {
             `Nilai: ${value}\n` +
             `Jumlah outlet: ${chosen.length}\n\n` +
             `Filter aktif: ${activeFilterCount}\n\n` +
-            (
-                selectedIds.length > 0
-                    ? 'Perubahan hanya untuk outlet yang dicentang.'
-                    : 'Tidak ada outlet yang dicentang. Semua outlet pada filter aktif akan diubah.'
-            ) +
+            (selectedIds.length > 0
+                ? 'Perubahan hanya untuk outlet yang dicentang.'
+                : 'Tidak ada outlet yang dicentang. Semua outlet pada filter aktif akan diubah.') +
             '\n\nLanjutkan?'
         );
 
@@ -448,11 +417,7 @@ const EditPage = () => {
             }
         } catch (err) {
             console.error('Gagal menerapkan perubahan:', err);
-
-            setError(
-                err?.message ||
-                'Gagal menyimpan perubahan ke Firebase.'
-            );
+            setError(err?.message || 'Gagal menyimpan perubahan ke Firebase.');
         } finally {
             setBusy(false);
         }
@@ -460,56 +425,27 @@ const EditPage = () => {
 
     return (
         <Box>
-            <Stack
-                direction="row"
-                spacing={1.25}
-                alignItems="center"
-                sx={{ mb: 1 }}
-            >
-                <BulkEditIcon
-                    color="primary"
-                    sx={{ fontSize: 32 }}
-                />
-
-                <Typography
-                    variant="h4"
-                    sx={{
-                        color: 'primary.main',
-                        fontWeight: 750,
-                    }}
-                >
+            <Stack direction="row" spacing={1.25} alignItems="center" sx={{ mb: 1 }}>
+                <BulkEditIcon color="primary" sx={{ fontSize: 32 }} />
+                <Typography variant="h4" sx={{ color: 'primary.main', fontWeight: 750 }}>
                     Edit Massal Outlet
                 </Typography>
             </Stack>
 
             <Typography color="text.secondary" sx={{ mb: 3 }}>
-                Filter toko, pilih outlet, ubah data massal, atau tambahkan
-                kolom baru sesuai kebutuhan.
+                Filter toko, pilih outlet, ubah data massal, atau tambahkan kolom baru sesuai kebutuhan.
             </Typography>
 
-            {/* 1. FILTER OUTLET - SEMUA KOLOM */}
+            {/* 1. FILTER OUTLET - SEMUA KOLOM SEARCHABLE */}
             <Card sx={{ mb: 3 }}>
                 <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-                    <Stack
-                        direction="row"
-                        spacing={1}
-                        alignItems="center"
-                        sx={{ mb: 2 }}
-                        justifyContent="space-between"
-                    >
+                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }} justifyContent="space-between">
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <FilterIcon color="primary" />
-                            <Typography variant="h6" fontWeight={700}>
-                                1. Filter Outlet
-                            </Typography>
+                            <Typography variant="h6" fontWeight={700}>1. Filter Outlet</Typography>
                         </Box>
-                        
                         {activeFilterCount > 0 && (
-                            <Chip
-                                label={`${activeFilterCount} filter aktif`}
-                                color="primary"
-                                size="small"
-                            />
+                            <Chip label={`${activeFilterCount} filter aktif`} color="primary" size="small" />
                         )}
                     </Stack>
 
@@ -518,199 +454,71 @@ const EditPage = () => {
                         <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
                             <Autocomplete
                                 multiple
-                                options={frontliners}
+                                options={filterOptions.frontliner}
                                 value={filters.frontliner}
-                                onChange={(_, values) =>
-                                    handleFilterChange('frontliner', values)
-                                }
+                                onChange={(_, values) => handleFilterChange('frontliner', values)}
                                 filterSelectedOptions
                                 renderInput={(params) => (
-                                    <TextField
-                                        {...params}
-                                        label="Frontliner"
-                                        placeholder="Cari dan pilih..."
-                                    />
+                                    <TextField {...params} label="Frontliner" placeholder="Cari dan pilih..." size="small" />
                                 )}
-                                renderTags={(values, getTagProps) =>
-                                    values.map((value, index) => (
-                                        <Chip
-                                            key={index}
-                                            label={value}
-                                            {...getTagProps({ index })}
-                                            size="small"
-                                        />
-                                    ))
-                                }
                             />
                         </Grid>
 
-                        {/* Account - Multi-select */}
+                        {/* Account - Searchable Multi-select */}
                         <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-                            <FormControl fullWidth size="small">
-                                <InputLabel id="filter-account-label">
-                                    Account
-                                </InputLabel>
-                                <Select
-                                    labelId="filter-account-label"
-                                    multiple
-                                    value={filters.account}
-                                    label="Account"
-                                    onChange={(e) =>
-                                        handleFilterChange('account', e.target.value)
-                                    }
-                                    renderValue={(selected) => (
-                                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                            {selected.map((value) => (
-                                                <Chip
-                                                    key={value}
-                                                    label={value}
-                                                    size="small"
-                                                />
-                                            ))}
-                                        </Box>
-                                    )}
-                                >
-                                    {filterOptions.account.map((account) => (
-                                        <MenuItem
-                                            key={account}
-                                            value={account}
-                                        >
-                                            <Checkbox
-                                                checked={filters.account.includes(account)}
-                                                size="small"
-                                            />
-                                            {account}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
+                            <Autocomplete
+                                multiple
+                                options={filterOptions.account}
+                                value={filters.account}
+                                onChange={(_, values) => handleFilterChange('account', values)}
+                                filterSelectedOptions
+                                renderInput={(params) => (
+                                    <TextField {...params} label="Account" placeholder="Cari dan pilih..." size="small" />
+                                )}
+                            />
                         </Grid>
 
-                        {/* District - Multi-select */}
+                        {/* District - Searchable Multi-select */}
                         <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-                            <FormControl fullWidth size="small">
-                                <InputLabel id="filter-district-label">
-                                    District
-                                </InputLabel>
-                                <Select
-                                    labelId="filter-district-label"
-                                    multiple
-                                    value={filters.district}
-                                    label="District"
-                                    onChange={(e) =>
-                                        handleFilterChange('district', e.target.value)
-                                    }
-                                    renderValue={(selected) => (
-                                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                            {selected.map((value) => (
-                                                <Chip
-                                                    key={value}
-                                                    label={value}
-                                                    size="small"
-                                                />
-                                            ))}
-                                        </Box>
-                                    )}
-                                >
-                                    {filterOptions.district.map((district) => (
-                                        <MenuItem
-                                            key={district}
-                                            value={district}
-                                        >
-                                            <Checkbox
-                                                checked={filters.district.includes(district)}
-                                                size="small"
-                                            />
-                                            {district}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
+                            <Autocomplete
+                                multiple
+                                options={filterOptions.district}
+                                value={filters.district}
+                                onChange={(_, values) => handleFilterChange('district', values)}
+                                filterSelectedOptions
+                                renderInput={(params) => (
+                                    <TextField {...params} label="District" placeholder="Cari dan pilih..." size="small" />
+                                )}
+                            />
                         </Grid>
 
-                        {/* RTG/Freezer - Multi-select */}
+                        {/* RTG / Freezer - Searchable Multi-select */}
                         <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-                            <FormControl fullWidth size="small">
-                                <InputLabel id="filter-rtg-label">
-                                    RTG / Freezer
-                                </InputLabel>
-                                <Select
-                                    labelId="filter-rtg-label"
-                                    multiple
-                                    value={filters.rtgFreezer}
-                                    label="RTG / Freezer"
-                                    onChange={(e) =>
-                                        handleFilterChange('rtgFreezer', e.target.value)
-                                    }
-                                    renderValue={(selected) => (
-                                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                            {selected.map((value) => (
-                                                <Chip
-                                                    key={value}
-                                                    label={value}
-                                                    size="small"
-                                                />
-                                            ))}
-                                        </Box>
-                                    )}
-                                >
-                                    {RTG_LABELS.map((label) => (
-                                        <MenuItem
-                                            key={label}
-                                            value={label}
-                                        >
-                                            <Checkbox
-                                                checked={filters.rtgFreezer.includes(label)}
-                                                size="small"
-                                            />
-                                            {label}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
+                            <Autocomplete
+                                multiple
+                                options={filterOptions.rtgFreezer}
+                                value={filters.rtgFreezer}
+                                onChange={(_, values) => handleFilterChange('rtgFreezer', values)}
+                                filterSelectedOptions
+                                renderInput={(params) => (
+                                    <TextField {...params} label="RTG / Freezer" placeholder="Cari dan pilih..." size="small" />
+                                )}
+                            />
                         </Grid>
 
-                        {/* Custom Columns - Multi-select */}
+                        {/* Custom Columns - Searchable Multi-select */}
                         {customColumns.map((col) => (
                             <Grid key={col} size={{ xs: 12, sm: 6, lg: 3 }}>
-                                <FormControl fullWidth size="small">
-                                    <InputLabel id={`filter-${col}-label`}>
-                                        {getColumnLabel(col)}
-                                    </InputLabel>
-                                    <Select
-                                        labelId={`filter-${col}-label`}
-                                        multiple
-                                        value={filters[col] || []}
-                                        label={getColumnLabel(col)}
-                                        onChange={(e) =>
-                                            handleFilterChange(col, e.target.value)
-                                        }
-                                        renderValue={(selected) => (
-                                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                                {selected.map((value) => (
-                                                    <Chip
-                                                        key={value}
-                                                        label={value}
-                                                        size="small"
-                                                    />
-                                                ))}
-                                            </Box>
-                                        )}
-                                    >
-                                        {filterOptions[col]?.map((value) => (
-                                            <MenuItem
-                                                key={value}
-                                                value={value}
-                                            >
-                                                <Checkbox
-                                                    checked={(filters[col] || []).includes(value)}
-                                                    size="small"
-                                                />
-                                                {value}
-                                            </MenuItem>
-                                        ))}
-                                    </Select>
-                                </FormControl>
+                                <Autocomplete
+                                    multiple
+                                    options={filterOptions[col] || []}
+                                    value={filters[col] || []}
+                                    onChange={(_, values) => handleFilterChange(col, values)}
+                                    filterSelectedOptions
+                                    renderInput={(params) => (
+                                        <TextField {...params} label={getColumnLabel(col)} placeholder="Cari dan pilih..." size="small" />
+                                    )}
+                                />
                             </Grid>
                         ))}
 
@@ -733,168 +541,68 @@ const EditPage = () => {
             <Card sx={{ mb: 3 }}>
                 <CardContent sx={{ p: { xs: 1.5, sm: 2.5 } }}>
                     <Stack
-                        direction={{
-                            xs: 'column',
-                            sm: 'row',
-                        }}
+                        direction={{ xs: 'column', sm: 'row' }}
                         justifyContent="space-between"
-                        alignItems={{
-                            xs: 'stretch',
-                            sm: 'center',
-                        }}
+                        alignItems={{ xs: 'stretch', sm: 'center' }}
                         spacing={1.5}
                         sx={{ mb: 2 }}
                     >
                         <Box>
-                            <Typography variant="h6" fontWeight={700}>
-                                2. Daftar Toko
-                            </Typography>
-
-                            <Typography
-                                variant="body2"
-                                color="text.secondary"
-                            >
-                                {filteredOutlets.length.toLocaleString('id-ID')}
-                                {' '}outlet ditampilkan
+                            <Typography variant="h6" fontWeight={700}>2. Daftar Toko</Typography>
+                            <Typography variant="body2" color="text.secondary">
+                                {filteredOutlets.length.toLocaleString('id-ID')} outlet ditampilkan
                             </Typography>
                         </Box>
-
                         <Chip
                             icon={<SelectedIcon />}
                             label={`${selectedVisibleCount} dipilih`}
-                            color={
-                                selectedVisibleCount
-                                    ? 'primary'
-                                    : 'default'
-                            }
+                            color={selectedVisibleCount ? 'primary' : 'default'}
                         />
                     </Stack>
 
                     {filteredOutlets.length === 0 ? (
-                        <Alert severity="warning">
-                            Tidak ada outlet yang sesuai dengan filter aktif.
-                        </Alert>
+                        <Alert severity="warning">Tidak ada outlet yang sesuai dengan filter aktif.</Alert>
                     ) : (
-                        <TableContainer
-                            component={Paper}
-                            variant="outlined"
-                            sx={{ maxHeight: 480, overflow: 'auto' }}
-                        >
+                        <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 480, overflow: 'auto' }}>
                             <Table size="small" stickyHeader>
                                 <TableHead>
                                     <TableRow>
-                                        <TableCell
-                                            padding="checkbox"
-                                            sx={{ bgcolor: '#F1F5F9' }}
-                                        >
+                                        <TableCell padding="checkbox" sx={{ bgcolor: '#F1F5F9' }}>
                                             <Checkbox
                                                 checked={allVisibleSelected}
                                                 indeterminate={someVisibleSelected}
-                                                onChange={(event) =>
-                                                    toggleAllVisible(
-                                                        event.target.checked
-                                                    )
-                                                }
-                                                inputProps={{
-                                                    'aria-label':
-                                                        'Pilih semua outlet',
-                                                }}
+                                                onChange={(event) => toggleAllVisible(event.target.checked)}
+                                                inputProps={{ 'aria-label': 'Pilih semua outlet' }}
                                             />
                                         </TableCell>
-
-                                        {[
-                                            'Outlet ID',
-                                            'Outlet Name',
-                                            'Frontliner',
-                                            'Account',
-                                            'District',
-                                            'RTG / Freezer',
-                                            ...customColumns.map(
-                                                getColumnLabel
-                                            ),
-                                        ].map((heading) => (
-                                            <TableCell
-                                                key={heading}
-                                                sx={{
-                                                    bgcolor: '#F1F5F9',
-                                                    fontWeight: 700,
-                                                    whiteSpace: 'nowrap',
-                                                }}
-                                            >
+                                        {['Outlet ID', 'Outlet Name', 'Frontliner', 'Account', 'District', 'RTG / Freezer', ...customColumns.map(getColumnLabel)].map((heading) => (
+                                            <TableCell key={heading} sx={{ bgcolor: '#F1F5F9', fontWeight: 700, whiteSpace: 'nowrap' }}>
                                                 {heading}
                                             </TableCell>
                                         ))}
                                     </TableRow>
                                 </TableHead>
-
                                 <TableBody>
                                     {filteredOutlets.map((outlet) => {
-                                        const checked =
-                                            selectedIds.includes(
-                                                String(outlet.id)
-                                            );
-
+                                        const checked = selectedIds.includes(String(outlet.id));
                                         return (
-                                            <TableRow
-                                                key={outlet.id}
-                                                hover
-                                                selected={checked}
-                                                onClick={() =>
-                                                    toggleOutlet(outlet.id)
-                                                }
-                                                sx={{ cursor: 'pointer' }}
-                                            >
+                                            <TableRow key={outlet.id} hover selected={checked} onClick={() => toggleOutlet(outlet.id)} sx={{ cursor: 'pointer' }}>
                                                 <TableCell padding="checkbox">
                                                     <Checkbox
                                                         checked={checked}
-                                                        onClick={(event) =>
-                                                            event.stopPropagation()
-                                                        }
-                                                        onChange={() =>
-                                                            toggleOutlet(
-                                                                outlet.id
-                                                            )
-                                                        }
-                                                        inputProps={{
-                                                            'aria-label':
-                                                                `Pilih ${outlet.outletName || outlet.outletId}`,
-                                                        }}
+                                                        onClick={(event) => event.stopPropagation()}
+                                                        onChange={() => toggleOutlet(outlet.id)}
+                                                        inputProps={{ 'aria-label': `Pilih ${outlet.outletName || outlet.outletId}` }}
                                                     />
                                                 </TableCell>
-
-                                                <TableCell>
-                                                    {outlet.outletId || '-'}
-                                                </TableCell>
-
-                                                <TableCell
-                                                    sx={{ minWidth: 180 }}
-                                                >
-                                                    {outlet.outletName || '-'}
-                                                </TableCell>
-
-                                                <TableCell>
-                                                    {outlet.frontliner || '-'}
-                                                </TableCell>
-
-                                                <TableCell>
-                                                    {outlet.account || '-'}
-                                                </TableCell>
-
-                                                <TableCell>
-                                                    {outlet.district || '-'}
-                                                </TableCell>
-
-                                                <TableCell>
-                                                    {outlet.rtgFreezer || '-'}
-                                                </TableCell>
-
+                                                <TableCell>{outlet.outletId || '-'}</TableCell>
+                                                <TableCell sx={{ minWidth: 180 }}>{outlet.outletName || '-'}</TableCell>
+                                                <TableCell>{outlet.frontliner || '-'}</TableCell>
+                                                <TableCell>{outlet.account || '-'}</TableCell>
+                                                <TableCell>{outlet.district || '-'}</TableCell>
+                                                <TableCell>{outlet.rtgFreezer || '-'}</TableCell>
                                                 {customColumns.map((key) => (
-                                                    <TableCell
-                                                        key={key}
-                                                        sx={{ minWidth: 140 }}
-                                                    >
-                                                        {outlet[key] ?? '-'}
-                                                    </TableCell>
+                                                    <TableCell key={key} sx={{ minWidth: 140 }}>{outlet[key] ?? '-'}</TableCell>
                                                 ))}
                                             </TableRow>
                                         );
@@ -904,14 +612,8 @@ const EditPage = () => {
                         </TableContainer>
                     )}
 
-                    <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{ display: 'block', mt: 1.5 }}
-                    >
-                        Centang toko tertentu untuk mengubah pilihan saja.
-                        Jika tidak ada yang dicentang, Apply berlaku untuk
-                        semua outlet hasil filter.
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
+                        Centang toko tertentu untuk mengubah pilihan saja. Jika tidak ada yang dicentang, Apply berlaku untuk semua outlet hasil filter.
                     </Typography>
                 </CardContent>
             </Card>
@@ -920,69 +622,32 @@ const EditPage = () => {
             {filteredOutlets.length > 0 && (
                 <Card>
                     <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-                        <Stack
-                            direction="row"
-                            spacing={1}
-                            alignItems="center"
-                            sx={{ mb: 2 }}
-                        >
+                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
                             <SelectAllIcon color="primary" />
-                            <Typography variant="h6" fontWeight={700}>
-                                3. Terapkan Perubahan
-                            </Typography>
+                            <Typography variant="h6" fontWeight={700}>3. Terapkan Perubahan</Typography>
                         </Stack>
 
-                        <Grid
-                            container
-                            spacing={2}
-                            alignItems="flex-start"
-                        >
+                        <Grid container spacing={2} alignItems="flex-start">
                             <Grid size={{ xs: 12, md: 4 }}>
                                 <FormControl fullWidth>
-                                    <InputLabel id="bulk-field-label">
-                                        Set To
-                                    </InputLabel>
-
+                                    <InputLabel id="bulk-field-label">Set To</InputLabel>
+                                    {/* Note: Using standard Select here for "Set To" is fine as it's single selection */}
                                     <Select
                                         labelId="bulk-field-label"
                                         value={field}
                                         label="Set To"
-                                        onChange={(event) =>
-                                            handleFieldChange(
-                                                event.target.value
-                                            )
-                                        }
+                                        onChange={(event) => handleFieldChange(event.target.value)}
                                     >
                                         {FIELD_OPTIONS.map((option) => (
-                                            <MenuItem
-                                                key={option.value}
-                                                value={option.value}
-                                            >
-                                                {option.label}
-                                            </MenuItem>
+                                            <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
                                         ))}
-
-                                        {customColumns.length > 0 && (
-                                            <Divider />
-                                        )}
-
+                                        {customColumns.length > 0 && <Divider />}
                                         {customColumns.map((key) => (
-                                            <MenuItem
-                                                key={key}
-                                                value={key}
-                                            >
-                                                {getColumnLabel(key)}
-                                            </MenuItem>
+                                            <MenuItem key={key} value={key}>{getColumnLabel(key)}</MenuItem>
                                         ))}
-
                                         <Divider />
-
                                         <MenuItem value={NEW_COLUMN}>
-                                            <Stack
-                                                direction="row"
-                                                spacing={1}
-                                                alignItems="center"
-                                            >
+                                            <Stack direction="row" spacing={1} alignItems="center">
                                                 <AddColumnIcon fontSize="small" />
                                                 <span>Tambah kolom baru...</span>
                                             </Stack>
@@ -994,25 +659,15 @@ const EditPage = () => {
                             <Grid size={{ xs: 12, md: 5 }}>
                                 {field === 'rtgFreezer' ? (
                                     <FormControl fullWidth>
-                                        <InputLabel id="bulk-value-label">
-                                            Nilai Baru
-                                        </InputLabel>
-
+                                        <InputLabel id="bulk-value-label">Nilai Baru</InputLabel>
                                         <Select
                                             labelId="bulk-value-label"
                                             value={newValue}
                                             label="Nilai Baru"
-                                            onChange={(event) =>
-                                                setNewValue(event.target.value)
-                                            }
+                                            onChange={(event) => setNewValue(event.target.value)}
                                         >
                                             {RTG_LABELS.map((label) => (
-                                                <MenuItem
-                                                    key={label}
-                                                    value={label}
-                                                >
-                                                    {label}
-                                                </MenuItem>
+                                                <MenuItem key={label} value={label}>{label}</MenuItem>
                                             ))}
                                         </Select>
                                     </FormControl>
@@ -1022,23 +677,16 @@ const EditPage = () => {
                                             fullWidth
                                             label="Nama Kolom Baru"
                                             value={customColumnName}
-                                            onChange={(event) =>
-                                                setCustomColumnName(
-                                                    event.target.value
-                                                )
-                                            }
+                                            onChange={(event) => setCustomColumnName(event.target.value)}
                                             placeholder="Contoh: Status Display"
                                             inputProps={{ maxLength: 60 }}
                                             helperText="Gunakan nama yang jelas. Kolom akan disimpan di data outlet."
                                         />
-
                                         <TextField
                                             fullWidth
                                             label="Nilai untuk Semua Target"
                                             value={newValue}
-                                            onChange={(event) =>
-                                                setNewValue(event.target.value)
-                                            }
+                                            onChange={(event) => setNewValue(event.target.value)}
                                             placeholder="Masukkan nilai kolom baru"
                                             inputProps={{ maxLength: 500 }}
                                         />
@@ -1046,17 +694,9 @@ const EditPage = () => {
                                 ) : (
                                     <TextField
                                         fullWidth
-                                        label={`Nilai Baru: ${
-                                            FIELD_OPTIONS.find(
-                                                (item) =>
-                                                    item.value === field
-                                            )?.label ||
-                                            getColumnLabel(field)
-                                        }`}
+                                        label={`Nilai Baru: ${FIELD_OPTIONS.find((item) => item.value === field)?.label || getColumnLabel(field)}`}
                                         value={newValue}
-                                        onChange={(event) =>
-                                            setNewValue(event.target.value)
-                                        }
+                                        onChange={(event) => setNewValue(event.target.value)}
                                         placeholder="Ketik nilai baru..."
                                         inputProps={{ maxLength: 500 }}
                                     />
@@ -1067,80 +707,31 @@ const EditPage = () => {
                                 <Button
                                     fullWidth
                                     variant="contained"
-                                    startIcon={
-                                        busy ? (
-                                            <CircularProgress
-                                                size={18}
-                                                color="inherit"
-                                            />
-                                        ) : field === NEW_COLUMN ? (
-                                            <AddColumnIcon />
-                                        ) : (
-                                            <BulkEditIcon />
-                                        )
-                                    }
+                                    startIcon={busy ? <CircularProgress size={18} color="inherit" /> : field === NEW_COLUMN ? <AddColumnIcon /> : <BulkEditIcon />}
                                     onClick={handleApply}
                                     disabled={busy}
                                     sx={{ height: 56 }}
                                 >
-                                    {busy
-                                        ? 'Memproses...'
-                                        : field === NEW_COLUMN
-                                        ? 'Tambah & Apply'
-                                        : 'Apply'}
+                                    {busy ? 'Memproses...' : field === NEW_COLUMN ? 'Tambah & Apply' : 'Apply'}
                                 </Button>
                             </Grid>
                         </Grid>
 
                         <Divider sx={{ my: 2 }} />
 
-                        <Stack
-                            direction="row"
-                            spacing={1}
-                            alignItems="center"
-                            flexWrap="wrap"
-                        >
+                        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
                             <ColumnIcon color="action" fontSize="small" />
-
-                            <Typography
-                                variant="body2"
-                                color="text.secondary"
-                            >
-                                Target perubahan:
-                                {' '}
-                                <b>
-                                    {selectedVisibleCount > 0
-                                        ? selectedVisibleCount
-                                        : filteredOutlets.length}
-                                </b>
-                                {' '}outlet
-                                {activeFilterCount > 0 && (
-                                    <>
-                                        {' '}dengan{' '}
-                                        <b>{activeFilterCount} filter aktif</b>
-                                    </>
-                                )}
+                            <Typography variant="body2" color="text.secondary">
+                                Target perubahan: <b>{selectedVisibleCount > 0 ? selectedVisibleCount : filteredOutlets.length}</b> outlet
+                                {activeFilterCount > 0 && (<> dengan <b>{activeFilterCount} filter aktif</b></>)}
                             </Typography>
                         </Stack>
 
                         {error && (
-                            <Alert
-                                severity="error"
-                                sx={{ mt: 2 }}
-                                onClose={() => setError('')}
-                            >
-                                {error}
-                            </Alert>
+                            <Alert severity="error" sx={{ mt: 2 }} onClose={() => setError('')}>{error}</Alert>
                         )}
-
                         {success && (
-                            <Alert
-                                severity="success"
-                                sx={{ mt: 2 }}
-                                onClose={() => setSuccess('')}
-                            >
-                                {success}
-                            </Alert>
+                            <Alert severity="success" sx={{ mt: 2 }} onClose={() => setSuccess('')}>{success}</Alert>
                         )}
                     </CardContent>
                 </Card>
