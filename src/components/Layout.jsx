@@ -28,7 +28,7 @@ import {
     Close as CloseIcon,
 } from '@mui/icons-material';
 
-// ✅ PERUBAHAN: Tambahkan Outlet di import
+// ✅ TAMBAHKAN Outlet
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 
@@ -74,7 +74,7 @@ const menuItems = [
     },
 ];
 
-// ✅ PERUBAHAN: Hapus parameter { children }
+// ✅ HAPUS parameter { children }
 const Layout = () => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -419,7 +419,7 @@ const Layout = () => {
                         p: { xs: 1.75, sm: 2.5, lg: 3.5 },
                     }}
                 >
-                    {/* ✅ PERUBAHAN: Ganti {children} dengan <Outlet /> */}
+                    {/* ✅ GANTI {children} DENGAN <Outlet /> */}
                     <Outlet />
                 </Box>
 
