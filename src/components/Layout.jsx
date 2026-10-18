@@ -66,12 +66,7 @@ const menuItems = [
         icon: <MapIcon />,
         path: '/map',
     },
-    {
-        label: 'Download Template',
-        description: 'Template data',
-        icon: <DownloadIcon />,
-        path: '/template',
-    },
+    
 ];
 
 // ✅ HAPUS parameter { children }
