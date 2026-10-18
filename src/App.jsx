@@ -32,7 +32,7 @@ function App() {
                             <Route path="/manage" element={<ManageOutletsPage />} />
 
                             <Route path="/map" element={<MapPage />} />
-                            <Route path="/upload" element={<UploadPage />} />
+                            
                             <Route path="/edit" element={<EditPage />} />
 
                             <Route path="/map" element={<MapPage />} />  
