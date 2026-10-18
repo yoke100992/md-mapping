@@ -425,11 +425,7 @@ function MapPage() {
                     <Card sx={{ overflow: 'hidden', height: '100%' }}>
                         <Box sx={{ height: { xs: '60vh', md: '75vh' }, minHeight: 360, width: '100%', '& .leaflet-container': { height: '100%', width: '100%', background: '#e8edf1' } }}>
                             {mapReady && validOutlets.length ? (
-
                                 <MapContainer key={filterFrontliner.join("|")} center={initialCenter} zoom={12} style={{ height: '100%', width: '100%' }} preferCanvas zoomAnimation={false} markerZoomAnimation={false} fadeAnimation={false} scrollWheelZoom>
-
-                                <MapContainer center={initialCenter} zoom={12} style={{ height: '100%', width: '100%' }} preferCanvas zoomAnimation={false} markerZoomAnimation={false} fadeAnimation={false} scrollWheelZoom>
-
                                     <TileLayer attribution='&copy; OpenStreetMap contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" updateWhenIdle updateWhenZooming={false} keepBuffer={2} />
                                     <OutletMarkerLayer outlets={validOutlets} customColors={customColors} onSelect={handleMarkerSelect} />
                                     <MapFocusController selectedOutlet={selectedOutlet} />
