@@ -148,9 +148,7 @@ function MapPage() {
     } = useData();
 
     const [filterFrontliner, setFilterFrontliner] = useState([]);
-    // Jangan bangun layer marker sebelum frontliner dipilih. Dialog muncul setiap kali halaman dibuka.
-    const [frontlinerDialogOpen, setFrontlinerDialogOpen] = useState(true);
-    const [draftFrontliner, setDraftFrontliner] = useState('');
+    // Peta dimuat langsung berdasarkan pilihan filter Frontliner, tanpa dialog awal.
     const [mapReady, setMapReady] = useState(false);
     const [frontlinerOutlets, setFrontlinerOutlets] = useState([]);
     const [loadingMap, setLoadingMap] = useState(false);
@@ -172,14 +170,7 @@ function MapPage() {
 
     const safeOutlets = useMemo(() => (Array.isArray(outlets) ? outlets : []).filter(Boolean), [outlets]);
     const safeFrontliners = useMemo(() => (Array.isArray(frontliners) ? frontliners : []).filter(Boolean), [frontliners]);
-    const outletCountByFrontliner = useMemo(() => {
-        const counts = new Map();
-        safeOutlets.forEach((outlet) => {
-            const name = outlet?.frontliner;
-            if (name) counts.set(name, (counts.get(name) || 0) + 1);
-        });
-        return counts;
-    }, [safeOutlets]);
+
 
     // Filter peta hanya menggunakan outlet milik frontliner yang dipilih.
     const mapOutlets = useMemo(() => (Array.isArray(frontlinerOutlets) ? frontlinerOutlets : []).filter(Boolean), [frontlinerOutlets]);
@@ -224,26 +215,57 @@ function MapPage() {
     const handleMarkerSelect = useCallback((outlet) => setSelectedOutlet(outlet), []);
 
     const resetFilters = () => {
-        // Reset filter tambahan, tetapi tetap batasi peta pada frontliner terpilih agar tidak berat.
-        setFilterFrontliner(draftFrontliner ? [draftFrontliner] : []);
-        setFilterAccount([]); setFilterRTG([]); setSearchQuery(''); setDebouncedSearch('');
+        // Pertahankan filter frontliner aktif agar tidak memuat semua outlet sekaligus.
+        setFilterAccount([]);
+        setFilterRTG([]);
+        setSearchQuery('');
+        setDebouncedSearch('');
+        setSelectedOutlet(null);
     };
 
-    const handleShowMap = async () => {
-        if (!draftFrontliner || typeof getOutletsByFrontliner !== 'function') return;
-        setLoadingMap(true);
+    // Ambil data hanya untuk frontliner yang dipilih pada filter. Tidak ada popup/modal pemilihan.
+    const handleFrontlinerFilterChange = async (event) => {
+        const selected = event.target.value;
+        const names = Array.isArray(selected) ? selected : [selected];
+        setFilterFrontliner(names);
+        setFilterAccount([]);
+        setFilterRTG([]);
+        setSelectedOutlet(null);
         setSaveError('');
+
+        if (!names.length) {
+            setFrontlinerOutlets([]);
+            setMapReady(false);
+            return;
+        }
+
+        setLoadingMap(true);
         try {
-            const result = await getOutletsByFrontliner(draftFrontliner);
-            setFrontlinerOutlets(Array.isArray(result) ? result : []);
-            setFilterFrontliner([draftFrontliner]);
-            setFilterAccount([]); setFilterRTG([]); setSearchQuery(''); setDebouncedSearch('');
-            setSelectedOutlet(null);
+            let results;
+            if (typeof getOutletsByFrontliner === 'function') {
+                // Batasi jumlah query bersamaan agar pilihan multi-frontliner tetap terkendali.
+                const chunks = [];
+                for (let i = 0; i < names.length; i += 3) {
+                    const group = names.slice(i, i + 3);
+                    const groupResults = await Promise.all(group.map((name) => getOutletsByFrontliner(name)));
+                    chunks.push(...groupResults);
+                }
+                results = chunks.flat();
+            } else {
+                // Fallback kompatibel jika context belum menyediakan query frontliner.
+                results = safeOutlets.filter((outlet) => names.includes(outlet.frontliner));
+            }
+
+            const unique = new Map();
+            (Array.isArray(results) ? results : []).filter(Boolean).forEach((outlet, index) => {
+                const key = String(outlet.id ?? outlet.outletId ?? `${outlet.frontliner || ''}-${outlet.outletName || ''}-${index}`);
+                if (!unique.has(key)) unique.set(key, outlet);
+            });
+            setFrontlinerOutlets([...unique.values()]);
             setMapReady(true);
-            setFrontlinerDialogOpen(false);
         } catch (error) {
-            console.error('Gagal memuat outlet frontliner:', error);
-            setSaveError('Gagal memuat outlet frontliner. Periksa koneksi Firebase dan coba lagi.');
+            console.error('Gagal memuat outlet berdasarkan filter frontliner:', error);
+            setSaveError('Gagal memuat outlet berdasarkan filter. Periksa koneksi Firebase dan indeks frontliner, lalu coba lagi.');
         } finally {
             setLoadingMap(false);
         }
@@ -312,7 +334,7 @@ function MapPage() {
     return (
         <Box sx={{ width: '100%', minWidth: 0 }}>
             <Typography variant="h4" gutterBottom sx={{ color: 'primary.main' }}>View Map</Typography>
-            {!mapReady && <Alert severity="info" sx={{ mb: 2 }}>Pilih nama frontliner untuk memuat outlet yang relevan dan mengurangi beban render peta.</Alert>}
+            {!mapReady && <Alert severity="info" sx={{ mb: 2 }}>Pilih satu atau beberapa frontliner pada filter di bawah. Peta akan memuat outlet sesuai pilihan.</Alert>}
             {loadingMap && <Alert severity="info" sx={{ mb: 2 }}>Sedang memuat outlet frontliner...</Alert>}
             {saveError && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setSaveError('')}>{saveError}</Alert>}
             {invalidCount > 0 && <Alert severity="info" sx={{ mb: 2 }}>{invalidCount} outlet tidak ditampilkan karena koordinat kosong atau tidak valid.</Alert>}
@@ -329,7 +351,7 @@ function MapPage() {
                         </Grid>
                         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                             <FormControl fullWidth size="small"><InputLabel>Frontliner</InputLabel>
-                                <Select multiple value={filterFrontliner} onChange={(e) => setFilterFrontliner(e.target.value)} label="Frontliner"
+                                <Select multiple value={filterFrontliner} onChange={handleFrontlinerFilterChange} label="Frontliner"
                                     renderValue={(values) =>
                                         values.length > 0 ? (
                                             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
@@ -420,7 +442,7 @@ function MapPage() {
                         <Box sx={{ height: '100%', minHeight: 300, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 3, textAlign: 'center', bgcolor: '#f9f9f9' }}>
                             <LocationIcon sx={{ fontSize: 70, color: 'primary.light', mb: 2 }} />
                             <Typography variant="h6" color="text.secondary">Tidak ada outlet dengan koordinat valid</Typography>
-                            {!mapReady ? <Button variant="contained" onClick={() => setFrontlinerDialogOpen(true)} sx={{ mt: 2 }}>Pilih Frontliner</Button> : hasActiveFilters && <Button variant="outlined" onClick={resetFilters} sx={{ mt: 2 }}>Reset Filter</Button>}
+                            {!filterFrontliner.length ? <Typography variant="body2" color="text.secondary">Pilih frontliner pada filter di atas untuk memuat peta.</Typography> : hasActiveFilters && <Button variant="outlined" onClick={resetFilters} sx={{ mt: 2 }}>Reset Filter</Button>}
                         </Box>
                     )}
                 </Box>
@@ -442,28 +464,6 @@ function MapPage() {
                     </Box>
                 </CardContent></Card>
             )}
-
-            <Dialog open={frontlinerDialogOpen} onClose={() => { if (mapReady) setFrontlinerDialogOpen(false); }} maxWidth="xs" fullWidth disableEscapeKeyDown={!mapReady}>
-                <DialogTitle sx={{ bgcolor: 'primary.main', color: '#fff' }}>Pilih Frontliner</DialogTitle>
-                <DialogContent sx={{ pt: '20px !important' }}>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                        Agar peta lebih ringan, pilih satu nama frontliner. Marker akan ditampilkan dalam kelompok (cluster).
-                    </Typography>
-                    <FormControl fullWidth size="small">
-                        <InputLabel id="map-frontliner-label">Nama Frontliner</InputLabel>
-                        <Select labelId="map-frontliner-label" value={draftFrontliner} label="Nama Frontliner" onChange={(e) => setDraftFrontliner(e.target.value)}>
-                            {safeFrontliners.map((fl) => <MenuItem key={fl} value={fl}>{fl} ({outletCountByFrontliner.get(fl) || 0} outlet)</MenuItem>)}
-                        </Select>
-                    </FormControl>
-                    {safeFrontliners.length === 0 && <Alert severity="warning" sx={{ mt: 2 }}>Data frontliner belum tersedia.</Alert>}
-                </DialogContent>
-                <DialogActions sx={{ p: 2 }}>
-                    {mapReady && <Button onClick={() => setFrontlinerDialogOpen(false)}>Batal</Button>}
-                    <Button variant="contained" onClick={handleShowMap} disabled={!draftFrontliner || loadingMap}>
-                        {loadingMap ? 'Memuat...' : 'Tampilkan Peta'}
-                    </Button>
-                </DialogActions>
-            </Dialog>
 
             <Dialog open={Boolean(editDialog)} onClose={() => setEditDialog(null)} maxWidth="sm" fullWidth>
                 <DialogTitle sx={{ bgcolor: 'primary.main', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
