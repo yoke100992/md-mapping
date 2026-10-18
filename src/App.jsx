@@ -1,48 +1,63 @@
-﻿import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider, CssBaseline, Box, Typography } from '@mui/material';
-import { DataProvider } from './context/DataContext';
-import fiestaTheme from './theme';
-import Layout from './components/Layout';
+import React from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { LockProvider } from './context/LockContext';
+import ProtectedRoute from './components/ProtectedRoute';
+
+// Import halaman-halaman kamu
 import DashboardPage from './components/DashboardPage';
+import ManageOutletsPage from './components/ManageOutletsPage';
 import UploadPage from './components/UploadPage';
 import EditPage from './components/EditPage';
 import MapPage from './components/MapPage';
-import ManageOutletsPage from './components/ManageOutletsPage';
-import { downloadTemplate } from './utils/csvParser';
-
-const TemplatePage = () => {
-    React.useEffect(() => { downloadTemplate(); }, []);
-    return (
-        <Box sx={{ textAlign: 'center', py: 8 }}>
-            <Typography variant="h5" color="primary.main" fontWeight={600}>? Template sedang diunduh...</Typography>
-        </Box>
-    );
-};
+import TemplatePage from './components/TemplatePage';
+import SettingsPage from './components/SettingsPage';
+import Layout from './components/Layout'; // sidebar kamu
 
 function App() {
     return (
-        <ThemeProvider theme={fiestaTheme}>
-            <CssBaseline />
-            <DataProvider>
-                <BrowserRouter>
-                    <Layout>
-                        <Routes>
-                            <Route path="/" element={<DashboardPage />} />
-                            <Route path="/manage" element={<ManageOutletsPage />} />
-                            <Route path="/map" element={<MapPage />} />
-                            <Route path="/upload" element={<UploadPage />} />
-                            <Route path="/edit" element={<EditPage />} />
-                            <Route path="/map" element={<MapPage />} />  
-
-
-                            <Route path="/template" element={<TemplatePage />} />
-                            <Route path="*" element={<Navigate to="/" replace />} />
-                        </Routes>
-                    </Layout>
-                </BrowserRouter>
-            </DataProvider>
-        </ThemeProvider>
+        <LockProvider>
+            <BrowserRouter>
+                <Routes>
+                    <Route path="/" element={<Layout />}>
+                        <Route index element={
+                            <ProtectedRoute pageId="dashboard">
+                                <DashboardPage />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="outlets" element={
+                            <ProtectedRoute pageId="outlets">
+                                <ManageOutletsPage />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="upload" element={
+                            <ProtectedRoute pageId="upload">
+                                <UploadPage />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="edit" element={
+                            <ProtectedRoute pageId="edit">
+                                <EditPage />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="map" element={
+                            <ProtectedRoute pageId="map">
+                                <MapPage />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="template" element={
+                            <ProtectedRoute pageId="template">
+                                <TemplatePage />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="settings" element={
+                            <ProtectedRoute pageId="settings">
+                                <SettingsPage />
+                            </ProtectedRoute>
+                        } />
+                    </Route>
+                </Routes>
+            </BrowserRouter>
+        </LockProvider>
     );
 }
 
