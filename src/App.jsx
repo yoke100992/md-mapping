@@ -6,6 +6,7 @@ import fiestaTheme from './theme';
 import Layout from './components/Layout';
 import DashboardPage from './components/DashboardPage';
 import UploadPage from './components/UploadPage';
+import EditPage from './components/EditPage';
 import MapPage from './components/MapPage';
 import ManageOutletsPage from './components/ManageOutletsPage';
 import { downloadTemplate } from './utils/csvParser';
@@ -29,8 +30,9 @@ function App() {
                         <Routes>
                             <Route path="/" element={<DashboardPage />} />
                             <Route path="/manage" element={<ManageOutletsPage />} />
-                            
-
+                            <Route path="/map" element={<MapPage />} />
+                            <Route path="/upload" element={<UploadPage />} />
+                            <Route path="/edit" element={<EditPage />} />
                             <Route path="/template" element={<TemplatePage />} />
                             <Route path="*" element={<Navigate to="/" replace />} />
                         </Routes>

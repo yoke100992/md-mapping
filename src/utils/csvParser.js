@@ -4,7 +4,7 @@ export const parseCSV = (file) => new Promise((resolve, reject) => {
   Papa.parse(file, {
     header: true,
     skipEmptyLines: 'greedy',
-    transformHeader: (header) => header.replace(/^\\uFEFF/, '').trim(),
+    transformHeader: (header) => header.replace(/^\uFEFF/, '').trim(),
     complete: (results) => {
       if (results.errors?.some((error) => error.code === 'TooManyFields' || error.code === 'TooFewFields')) {
         console.warn('CSV memiliki baris dengan jumlah kolom tidak konsisten:', results.errors.slice(0, 5));

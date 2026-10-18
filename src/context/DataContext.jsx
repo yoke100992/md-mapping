@@ -1,21 +1,8 @@
 import React, {
-    createContext,
-    useCallback,
-    useContext,
-    useEffect,
-    useMemo,
-    useState,
+    createContext, useCallback, useContext, useEffect, useMemo, useState,
 } from 'react';
 import {
-    ref,
-    set,
-    onValue,
-    remove,
-    update,
-    get,
-    query,
-    orderByChild,
-    equalTo,
+    ref, set, onValue, remove, update, get, query, orderByChild, equalTo,
 } from 'firebase/database';
 import { db } from '../firebase';
 
@@ -23,62 +10,92 @@ const DataContext = createContext(null);
 
 export const DataProvider = ({ children }) => {
     const [outlets, setOutlets] = useState([]);
+    const [deletedOutlets, setDeletedOutlets] = useState([]);
     const [customColors, setCustomColors] = useState({});
 
-    // Listener ini tetap dipertahankan agar halaman lain yang memakai `outlets`
-    // tidak rusak. MapPage memakai query khusus untuk mengambil outlet terpilih.
     useEffect(() => {
-        const outletsRef = ref(db, 'outlets');
-        const unsubscribe = onValue(
-            outletsRef,
-            (snapshot) => {
-                const data = snapshot.val();
-                setOutlets(data ? Object.values(data) : []);
-            },
-            (error) => console.error('Gagal membaca outlets:', error)
-        );
+        const unsubscribe = onValue(ref(db, 'outlets'), (snapshot) => {
+            const data = snapshot.val() || {};
+            setOutlets(Object.entries(data).map(([key, value]) => ({ ...value, id: value?.id ?? key })));
+        }, (error) => console.error('Gagal membaca outlets:', error));
         return unsubscribe;
     }, []);
 
     useEffect(() => {
-        const colorsRef = ref(db, 'customColors');
-        const unsubscribe = onValue(
-            colorsRef,
-            (snapshot) => setCustomColors(snapshot.val() || {}),
-            (error) => console.error('Gagal membaca custom colors:', error)
-        );
+        const unsubscribe = onValue(ref(db, 'deletedOutlets'), (snapshot) => {
+            const data = snapshot.val() || {};
+            setDeletedOutlets(Object.entries(data).map(([key, value]) => ({ ...value, id: value?.id ?? key })));
+        }, (error) => console.error('Gagal membaca deleted outlets:', error));
+        return unsubscribe;
+    }, []);
+
+    useEffect(() => {
+        const unsubscribe = onValue(ref(db, 'customColors'), (snapshot) => {
+            setCustomColors(snapshot.val() || {});
+        }, (error) => console.error('Gagal membaca custom colors:', error));
         return unsubscribe;
     }, []);
 
     const addOutlets = useCallback(async (newOutlets) => {
         if (!Array.isArray(newOutlets) || newOutlets.length === 0) return;
         const updates = {};
-        const usedIds = new Set();
-
         for (const outlet of newOutlets) {
-            let id = String(outlet.id ?? '').trim();
-            if (!id || usedIds.has(id)) {
-                id = `outlet-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-            }
-            usedIds.add(id);
+            const id = String(outlet.id ?? '').trim() || `outlet-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
             updates[`outlets/${id}`] = { ...outlet, id };
         }
-
         await update(ref(db), updates);
     }, []);
 
-    const updateOutlet = useCallback(async (id, updates) => {
-        if (id == null) return;
-        await update(ref(db, `outlets/${id}`), updates);
+    const updateOutlet = useCallback(async (id, changes) => {
+        if (id == null) throw new Error('ID outlet tidak ditemukan.');
+        await update(ref(db, `outlets/${id}`), changes);
+    }, []);
+
+    const updateOutlets = useCallback(async (ids, changes) => {
+        if (!Array.isArray(ids) || ids.length === 0) return;
+        const updates = {};
+        ids.filter((id) => id != null).forEach((id) => {
+            Object.entries(changes).forEach(([key, value]) => {
+                updates[`outlets/${id}/${key}`] = value;
+            });
+        });
+        if (Object.keys(updates).length) await update(ref(db), updates);
     }, []);
 
     const removeOutlet = useCallback(async (id) => {
-        if (id == null) return;
-        await remove(ref(db, `outlets/${id}`));
+        if (id == null) throw new Error('ID outlet tidak ditemukan.');
+        const snapshot = await get(ref(db, `outlets/${id}`));
+        if (snapshot.exists()) {
+            const outlet = snapshot.val();
+            await update(ref(db), {
+                [`deletedOutlets/${id}`]: { ...outlet, id, deletedAt: new Date().toISOString() },
+                [`outlets/${id}`]: null,
+            });
+        }
     }, []);
 
     const clearAll = useCallback(async () => {
-        await remove(ref(db, 'outlets'));
+        const snapshot = await get(ref(db, 'outlets'));
+        const data = snapshot.val() || {};
+        const updates = {};
+        const deletedAt = new Date().toISOString();
+        Object.entries(data).forEach(([id, outlet]) => {
+            updates[`deletedOutlets/${id}`] = { ...outlet, id, deletedAt };
+            updates[`outlets/${id}`] = null;
+        });
+        if (Object.keys(updates).length) await update(ref(db), updates);
+    }, []);
+
+    const restoreOutlet = useCallback(async (id) => {
+        if (id == null) throw new Error('ID outlet tidak ditemukan.');
+        const snapshot = await get(ref(db, `deletedOutlets/${id}`));
+        if (!snapshot.exists()) throw new Error('Data outlet yang akan dipulihkan tidak ditemukan.');
+        const outlet = snapshot.val();
+        const { deletedAt, ...restoredOutlet } = outlet;
+        await update(ref(db), {
+            [`outlets/${id}`]: { ...restoredOutlet, id },
+            [`deletedOutlets/${id}`]: null,
+        });
     }, []);
 
     const updateCustomColor = useCallback(async (frontliner, color) => {
@@ -88,51 +105,28 @@ export const DataProvider = ({ children }) => {
         else await set(colorRef, color);
     }, []);
 
-    // Mengambil hanya outlet milik frontliner yang dipilih untuk layer peta.
     const getOutletsByFrontliner = useCallback(async (frontliner) => {
         if (!frontliner) return [];
-        const outletQuery = query(
-            ref(db, 'outlets'),
-            orderByChild('frontliner'),
-            equalTo(frontliner)
-        );
+        const outletQuery = query(ref(db, 'outlets'), orderByChild('frontliner'), equalTo(frontliner));
         const snapshot = await get(outletQuery);
-        const data = snapshot.val();
-        return data ? Object.values(data) : [];
+        const data = snapshot.val() || {};
+        return Object.entries(data).map(([key, value]) => ({ ...value, id: value?.id ?? key }));
     }, []);
 
     const frontliners = useMemo(
-        () =>
-            [...new Set(outlets.map((outlet) => outlet?.frontliner).filter(Boolean))].sort(
-                (a, b) => String(a).localeCompare(String(b))
-            ),
+        () => [...new Set(outlets.map((outlet) => outlet?.frontliner).filter(Boolean))]
+            .sort((a, b) => String(a).localeCompare(String(b))),
         [outlets]
     );
 
-    const value = useMemo(
-        () => ({
-            outlets,
-            frontliners,
-            customColors,
-            addOutlets,
-            updateOutlet,
-            removeOutlet,
-            clearAll,
-            updateCustomColor,
-            getOutletsByFrontliner,
-        }),
-        [
-            outlets,
-            frontliners,
-            customColors,
-            addOutlets,
-            updateOutlet,
-            removeOutlet,
-            clearAll,
-            updateCustomColor,
-            getOutletsByFrontliner,
-        ]
-    );
+    const value = useMemo(() => ({
+        outlets, deletedOutlets, frontliners, customColors,
+        addOutlets, updateOutlet, updateOutlets, removeOutlet, clearAll, restoreOutlet,
+        updateCustomColor, getOutletsByFrontliner,
+    }), [
+        outlets, deletedOutlets, frontliners, customColors, addOutlets, updateOutlet,
+        updateOutlets, removeOutlet, clearAll, restoreOutlet, updateCustomColor, getOutletsByFrontliner,
+    ]);
 
     return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 };

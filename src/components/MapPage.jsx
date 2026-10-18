@@ -12,29 +12,10 @@ import {
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import 'leaflet.markercluster';
-import 'leaflet.markercluster/dist/MarkerCluster.css';
-import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import { useData } from '../context/DataContext';
 import { getFrontlinerColor, RTG_LABELS, COLOR_PICKER_PALETTE } from '../utils/constants';
 
 const DEFAULT_CENTER = [-6.9175, 107.6191];
-const CLUSTER_OPTIONS = {
-    chunkedLoading: true,
-    chunkInterval: 100,
-    chunkDelay: 25,
-    maxClusterRadius: 55,
-    spiderfyOnMaxZoom: true,
-    showCoverageOnHover: false,
-    removeOutsideVisibleBounds: true,
-    animate: false,
-    animateAddingMarkers: false,
-};
-
-const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-}[char]));
-
 const isValidCoordinate = (outlet) => {
     if (!outlet) return false;
     const latRaw = outlet.latitude;
@@ -50,93 +31,72 @@ const makePinIcon = (color) => L.divIcon({
     html: `<div style="width:18px;height:18px;border:3px solid #fff;border-radius:50% 50% 50% 0;background:${color};transform:rotate(-45deg);box-shadow:0 1px 5px #0006"></div>`,
     iconSize: [22, 22],
     iconAnchor: [11, 22],
-    popupAnchor: [0, -20],
 });
 
-// Leaflet manages markers outside React. This avoids rendering thousands of React Marker components.
-const ClusteredOutletLayer = memo(function ClusteredOutletLayer({ outlets, customColors, onSelect }) {
+// Marker layer tanpa cluster. Marker dibuat bertahap agar browser sempat menggambar UI.
+const OutletMarkerLayer = memo(function OutletMarkerLayer({ outlets, customColors, onSelect }) {
     const map = useMap();
 
     useEffect(() => {
-        if (!map || !L.markerClusterGroup) return undefined;
+        if (!map) return undefined;
 
-        // Penting: pembuatan marker dilakukan bertahap agar browser tidak freeze.
-        // chunkedLoading Leaflet hanya membagi proses addLayers, bukan loop pembuatan marker.
-        const cluster = L.markerClusterGroup({
-            ...CLUSTER_OPTIONS,
-            chunkedLoading: false,
-            animate: false,
-            animateAddingMarkers: false,
-        });
-        const icons = new Map();
+        const layer = L.layerGroup();
         const valid = outlets.filter(isValidCoordinate);
-        const batchSize = 60;
+        const icons = new Map();
+        const batchSize = 40;
         let index = 0;
         let timerId = null;
         let cancelled = false;
 
-        map.addLayer(cluster);
+        layer.addTo(map);
 
         const addNextBatch = () => {
             if (cancelled) return;
-            const batch = [];
             const stopAt = Math.min(index + batchSize, valid.length);
 
             for (; index < stopAt; index += 1) {
                 const outlet = valid[index];
-                const lat = Number(outlet.latitude);
-                const lng = Number(outlet.longitude);
                 const color = getFrontlinerColor(outlet.frontliner, customColors) || '#64748b';
                 if (!icons.has(color)) icons.set(color, makePinIcon(color));
 
-                const marker = L.marker([lat, lng], {
+                const marker = L.marker([Number(outlet.latitude), Number(outlet.longitude)], {
                     icon: icons.get(color),
                     keyboard: false,
                     riseOnHover: false,
+                    title: outlet.outletName || outlet.outletId || 'Outlet',
                 });
-                const outletName = escapeHTML(outlet.outletName || 'Outlet tanpa nama');
-                const outletId = escapeHTML(outlet.outletId || '-');
-                const account = escapeHTML(outlet.account || '-');
-                const frontliner = escapeHTML(outlet.frontliner || 'Belum ditentukan');
-                const address = escapeHTML(outlet.address || '-');
-                const rtg = escapeHTML(outlet.rtgFreezer || 'None');
-
-                marker.bindPopup(
-                    `<div style="min-width:180px;max-width:240px;font-family:Arial,sans-serif">` +
-                    `<b style="font-size:14px">${outletName}</b><br/>` +
-                    `<span style="color:#64748b;font-size:12px">ID: ${outletId}</span><br/>` +
-                    `<div style="margin-top:6px;font-size:12px">Account: ${account}</div>` +
-                    `<div style="font-size:12px">Frontliner: ${frontliner}</div>` +
-                    `<div style="font-size:12px">RTG: ${rtg}</div>` +
-                    `<div style="margin-top:5px;font-size:12px;white-space:normal">${address}</div>` +
-                    `<div style="margin-top:7px;color:#64748b;font-size:11px">Klik marker untuk membuka detail outlet di bawah peta.</div>` +
-                    `</div>`,
-                    { autoPan: false, closeButton: true }
-                );
+                // Tidak ada popup. Klik marker memilih outlet dan menampilkan panel detail di bawah peta.
                 marker.on('click', () => onSelect(outlet));
-                batch.push(marker);
+                layer.addLayer(marker);
             }
 
-            if (batch.length && !cancelled) cluster.addLayers(batch);
             if (index < valid.length && !cancelled) {
-                // Beri browser kesempatan menggambar UI di antara batch.
                 timerId = window.setTimeout(addNextBatch, 0);
             }
         };
 
-        // Mulai setelah render awal peta selesai.
         timerId = window.setTimeout(addNextBatch, 0);
 
         return () => {
             cancelled = true;
             if (timerId !== null) window.clearTimeout(timerId);
-            cluster.clearLayers();
-            if (map.hasLayer(cluster)) map.removeLayer(cluster);
+            layer.clearLayers();
+            if (map.hasLayer(layer)) map.removeLayer(layer);
         };
     }, [map, outlets, customColors, onSelect]);
 
     return null;
 });
+
+function MapFocusController({ selectedOutlet }) {
+    const map = useMap();
+    useEffect(() => {
+        if (!selectedOutlet || !isValidCoordinate(selectedOutlet)) return;
+        // Pindahkan pusat peta ke outlet terpilih tanpa mengubah level zoom.
+        map.panTo([Number(selectedOutlet.latitude), Number(selectedOutlet.longitude)], { animate: false });
+    }, [map, selectedOutlet]);
+    return null;
+}
 
 function MapPage() {
     const {
@@ -145,9 +105,7 @@ function MapPage() {
     } = useData();
 
     const [filterFrontliner, setFilterFrontliner] = useState([]);
-    // Jangan bangun layer marker sebelum frontliner dipilih. Dialog muncul setiap kali halaman dibuka.
-    const [frontlinerDialogOpen, setFrontlinerDialogOpen] = useState(true);
-    const [draftFrontliner, setDraftFrontliner] = useState('');
+    // Peta dimuat langsung berdasarkan pilihan filter Frontliner, tanpa dialog awal.
     const [mapReady, setMapReady] = useState(false);
     const [frontlinerOutlets, setFrontlinerOutlets] = useState([]);
     const [loadingMap, setLoadingMap] = useState(false);
@@ -169,14 +127,7 @@ function MapPage() {
 
     const safeOutlets = useMemo(() => (Array.isArray(outlets) ? outlets : []).filter(Boolean), [outlets]);
     const safeFrontliners = useMemo(() => (Array.isArray(frontliners) ? frontliners : []).filter(Boolean), [frontliners]);
-    const outletCountByFrontliner = useMemo(() => {
-        const counts = new Map();
-        safeOutlets.forEach((outlet) => {
-            const name = outlet?.frontliner;
-            if (name) counts.set(name, (counts.get(name) || 0) + 1);
-        });
-        return counts;
-    }, [safeOutlets]);
+
 
     // Filter peta hanya menggunakan outlet milik frontliner yang dipilih.
     const mapOutlets = useMemo(() => (Array.isArray(frontlinerOutlets) ? frontlinerOutlets : []).filter(Boolean), [frontlinerOutlets]);
@@ -218,29 +169,69 @@ function MapPage() {
     }, [mapOutlets]);
 
     const getColor = useCallback((name) => getFrontlinerColor(name, customColors) || '#64748b', [customColors]);
-    const handleMarkerSelect = useCallback((outlet) => setSelectedOutlet(outlet), []);
+    const handleMarkerSelect = useCallback((outlet) => {
+        setSelectedOutlet(outlet);
+        setEditForm({
+            ...outlet,
+            frontliner: outlet.frontliner || '',
+            rtgFreezer: outlet.rtgFreezer || 'None',
+            account: outlet.account || '',
+        });
+        setSaveError('');
+    }, []);
 
     const resetFilters = () => {
-        // Reset filter tambahan, tetapi tetap batasi peta pada frontliner terpilih agar tidak berat.
-        setFilterFrontliner(draftFrontliner ? [draftFrontliner] : []);
-        setFilterAccount([]); setFilterRTG([]); setSearchQuery(''); setDebouncedSearch('');
+        // Pertahankan filter frontliner aktif agar tidak memuat semua outlet sekaligus.
+        setFilterAccount([]);
+        setFilterRTG([]);
+        setSearchQuery('');
+        setDebouncedSearch('');
+        setSelectedOutlet(null);
     };
 
-    const handleShowMap = async () => {
-        if (!draftFrontliner || typeof getOutletsByFrontliner !== 'function') return;
-        setLoadingMap(true);
+    // Ambil data hanya untuk frontliner yang dipilih pada filter. Tidak ada popup/modal pemilihan.
+    const handleFrontlinerFilterChange = async (event) => {
+        const selected = event.target.value;
+        const names = Array.isArray(selected) ? selected : [selected];
+        setFilterFrontliner(names);
+        setFilterAccount([]);
+        setFilterRTG([]);
+        setSelectedOutlet(null);
         setSaveError('');
+
+        if (!names.length) {
+            setFrontlinerOutlets([]);
+            setMapReady(false);
+            return;
+        }
+
+        setLoadingMap(true);
         try {
-            const result = await getOutletsByFrontliner(draftFrontliner);
-            setFrontlinerOutlets(Array.isArray(result) ? result : []);
-            setFilterFrontliner([draftFrontliner]);
-            setFilterAccount([]); setFilterRTG([]); setSearchQuery(''); setDebouncedSearch('');
-            setSelectedOutlet(null);
+            let results;
+            if (typeof getOutletsByFrontliner === 'function') {
+                // Batasi jumlah query bersamaan agar pilihan multi-frontliner tetap terkendali.
+                const chunks = [];
+                for (let i = 0; i < names.length; i += 3) {
+                    const group = names.slice(i, i + 3);
+                    const groupResults = await Promise.all(group.map((name) => getOutletsByFrontliner(name)));
+                    chunks.push(...groupResults);
+                }
+                results = chunks.flat();
+            } else {
+                // Fallback kompatibel jika context belum menyediakan query frontliner.
+                results = safeOutlets.filter((outlet) => names.includes(outlet.frontliner));
+            }
+
+            const unique = new Map();
+            (Array.isArray(results) ? results : []).filter(Boolean).forEach((outlet, index) => {
+                const key = String(outlet.id ?? outlet.outletId ?? `${outlet.frontliner || ''}-${outlet.outletName || ''}-${index}`);
+                if (!unique.has(key)) unique.set(key, outlet);
+            });
+            setFrontlinerOutlets([...unique.values()]);
             setMapReady(true);
-            setFrontlinerDialogOpen(false);
         } catch (error) {
-            console.error('Gagal memuat outlet frontliner:', error);
-            setSaveError('Gagal memuat outlet frontliner. Periksa koneksi Firebase dan coba lagi.');
+            console.error('Gagal memuat outlet berdasarkan filter frontliner:', error);
+            setSaveError('Gagal memuat outlet berdasarkan filter. Periksa koneksi Firebase dan indeks frontliner, lalu coba lagi.');
         } finally {
             setLoadingMap(false);
         }
@@ -268,6 +259,30 @@ function MapPage() {
             setEditDialog(null); setSelectedOutlet(null); setSaveError('');
         } catch (error) {
             console.error('Gagal memperbarui outlet:', error);
+            setSaveError('Gagal menyimpan perubahan. Periksa koneksi Firebase lalu coba lagi.');
+        }
+    };
+
+    const handleSaveMapFields = async () => {
+        if (!selectedOutlet) return;
+        const id = selectedOutlet.id;
+        if (id == null) {
+            setSaveError('ID outlet tidak ditemukan, sehingga perubahan tidak dapat disimpan.');
+            return;
+        }
+        const updates = {
+            frontliner: editForm.frontliner || '',
+            rtgFreezer: editForm.rtgFreezer || 'None',
+        };
+        try {
+            await updateOutlet(id, updates);
+            const updated = { ...selectedOutlet, ...updates };
+            setFrontlinerOutlets((prev) => prev.map((o) => String(o.id) === String(id) ? { ...o, ...updates } : o));
+            setSelectedOutlet(updated);
+            setEditForm((prev) => ({ ...prev, ...updates }));
+            setSaveError('');
+        } catch (error) {
+            console.error('Gagal menyimpan Frontliner/RTG:', error);
             setSaveError('Gagal menyimpan perubahan. Periksa koneksi Firebase lalu coba lagi.');
         }
     };
@@ -309,7 +324,7 @@ function MapPage() {
     return (
         <Box sx={{ width: '100%', minWidth: 0 }}>
             <Typography variant="h4" gutterBottom sx={{ color: 'primary.main' }}>View Map</Typography>
-            {!mapReady && <Alert severity="info" sx={{ mb: 2 }}>Pilih nama frontliner untuk memuat outlet yang relevan dan mengurangi beban render peta.</Alert>}
+            {!mapReady && <Alert severity="info" sx={{ mb: 2 }}>Pilih satu atau beberapa frontliner pada filter di bawah. Peta akan memuat outlet sesuai pilihan.</Alert>}
             {loadingMap && <Alert severity="info" sx={{ mb: 2 }}>Sedang memuat outlet frontliner...</Alert>}
             {saveError && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setSaveError('')}>{saveError}</Alert>}
             {invalidCount > 0 && <Alert severity="info" sx={{ mb: 2 }}>{invalidCount} outlet tidak ditampilkan karena koordinat kosong atau tidak valid.</Alert>}
@@ -326,7 +341,7 @@ function MapPage() {
                         </Grid>
                         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                             <FormControl fullWidth size="small"><InputLabel>Frontliner</InputLabel>
-                                <Select multiple value={filterFrontliner} onChange={(e) => setFilterFrontliner(e.target.value)} label="Frontliner"
+                                <Select multiple value={filterFrontliner} onChange={handleFrontlinerFilterChange} label="Frontliner"
                                     renderValue={(values) =>
                                         values.length > 0 ? (
                                             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
@@ -372,6 +387,26 @@ function MapPage() {
                                 </Select>
                             </FormControl>
                         </Grid>
+                        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                            <FormControl fullWidth size="small">
+                                <InputLabel id="map-outlet-select-label">Pilih Outlet</InputLabel>
+                                <Select
+                                    labelId="map-outlet-select-label"
+                                    label="Pilih Outlet"
+                                    value={selectedOutlet ? String(selectedOutlet.id ?? selectedOutlet.outletId ?? '') : ''}
+                                    onChange={(e) => {
+                                        const chosen = filteredOutlets.find((o) => String(o.id ?? o.outletId ?? '') === String(e.target.value));
+                                        if (chosen) handleMarkerSelect(chosen); else setSelectedOutlet(null);
+                                    }}
+                                >
+                                    <MenuItem value=""><em>Pilih outlet...</em></MenuItem>
+                                    {filteredOutlets.map((outlet, index) => {
+                                        const outletKey = String(outlet.id ?? outlet.outletId ?? `${outlet.outletName || 'outlet'}-${index}`);
+                                        return <MenuItem key={outletKey} value={outletKey}>{outlet.outletName || 'Outlet tanpa nama'} — {outlet.outletId || outlet.id || '-'}</MenuItem>;
+                                    })}
+                                </Select>
+                            </FormControl>
+                        </Grid>
                     </Grid>
                     <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
                         <Typography variant="body2" fontWeight={600}>Frontliner:</Typography>
@@ -385,61 +420,68 @@ function MapPage() {
                 </CardContent>
             </Card>
 
-            <Card sx={{ overflow: 'hidden' }}>
-                <Box sx={{ height: { xs: '60vh', md: '75vh' }, width: '100%', '& .leaflet-container': { height: '100%', width: '100%', background: '#e8edf1' } }}>
-                    {mapReady && validOutlets.length ? (
-                        <MapContainer center={initialCenter} zoom={12} style={{ height: '100%', width: '100%' }} preferCanvas zoomAnimation={false} markerZoomAnimation={false} fadeAnimation={false} scrollWheelZoom>
-                            <TileLayer attribution='&copy; OpenStreetMap contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" updateWhenIdle updateWhenZooming={false} keepBuffer={2} />
-                            <ClusteredOutletLayer outlets={validOutlets} customColors={customColors} onSelect={handleMarkerSelect} />
-                        </MapContainer>
-                    ) : (
-                        <Box sx={{ height: '100%', minHeight: 300, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 3, textAlign: 'center', bgcolor: '#f9f9f9' }}>
-                            <LocationIcon sx={{ fontSize: 70, color: 'primary.light', mb: 2 }} />
-                            <Typography variant="h6" color="text.secondary">Tidak ada outlet dengan koordinat valid</Typography>
-                            {!mapReady ? <Button variant="contained" onClick={() => setFrontlinerDialogOpen(true)} sx={{ mt: 2 }}>Pilih Frontliner</Button> : hasActiveFilters && <Button variant="outlined" onClick={resetFilters} sx={{ mt: 2 }}>Reset Filter</Button>}
+            <Grid container spacing={2} alignItems="stretch">
+                <Grid size={{ xs: 12, md: selectedOutlet ? 8 : 12 }}>
+                    <Card sx={{ overflow: 'hidden', height: '100%' }}>
+                        <Box sx={{ height: { xs: '60vh', md: '75vh' }, minHeight: 360, width: '100%', '& .leaflet-container': { height: '100%', width: '100%', background: '#e8edf1' } }}>
+                            {mapReady && validOutlets.length ? (
+                                <MapContainer key={filterFrontliner.join("|")} center={initialCenter} zoom={12} style={{ height: '100%', width: '100%' }} preferCanvas zoomAnimation={false} markerZoomAnimation={false} fadeAnimation={false} scrollWheelZoom>
+                                    <TileLayer attribution='&copy; OpenStreetMap contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" updateWhenIdle updateWhenZooming={false} keepBuffer={2} />
+                                    <OutletMarkerLayer outlets={validOutlets} customColors={customColors} onSelect={handleMarkerSelect} />
+                                    <MapFocusController selectedOutlet={selectedOutlet} />
+                                </MapContainer>
+                            ) : (
+                                <Box sx={{ height: '100%', minHeight: 360, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 3, textAlign: 'center', bgcolor: '#f9f9f9' }}>
+                                    <LocationIcon sx={{ fontSize: 70, color: 'primary.light', mb: 2 }} />
+                                    <Typography variant="h6" color="text.secondary">Tidak ada outlet dengan koordinat valid</Typography>
+                                    {!filterFrontliner.length ? <Typography variant="body2" color="text.secondary">Pilih frontliner pada filter di atas untuk memuat peta.</Typography> : hasActiveFilters && <Button variant="outlined" onClick={resetFilters} sx={{ mt: 2 }}>Reset Filter</Button>}
+                                </Box>
+                            )}
                         </Box>
-                    )}
-                </Box>
-            </Card>
+                    </Card>
+                </Grid>
 
-            {selectedOutlet && (
-                <Card sx={{ mt: 3 }}><CardContent>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                        <Typography variant="h6" fontWeight={600}>Detail Outlet</Typography>
-                        <IconButton onClick={() => setSelectedOutlet(null)} size="small"><CloseIcon /></IconButton>
-                    </Box>
-                    <Typography><b>Nama:</b> {selectedOutlet.outletName || '-'}</Typography>
-                    <Typography variant="body2" color="text.secondary">ID: {selectedOutlet.outletId || '-'} | Account: {selectedOutlet.account || '-'}</Typography>
-                    <Typography variant="body2" sx={{ mt: 1 }}><b>Frontliner:</b> {selectedOutlet.frontliner || '-'}</Typography>
-                    <Typography variant="body2" sx={{ mt: 1 }}><b>Alamat:</b> {selectedOutlet.address || '-'}</Typography>
-                    <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                        <Button variant="contained" startIcon={<EditIcon />} onClick={() => handleEdit(selectedOutlet)}>Edit Outlet</Button>
-                        <Button variant="outlined" color="error" onClick={handleDelete}>Hapus Outlet</Button>
-                    </Box>
-                </CardContent></Card>
-            )}
-
-            <Dialog open={frontlinerDialogOpen} onClose={() => { if (mapReady) setFrontlinerDialogOpen(false); }} maxWidth="xs" fullWidth disableEscapeKeyDown={!mapReady}>
-                <DialogTitle sx={{ bgcolor: 'primary.main', color: '#fff' }}>Pilih Frontliner</DialogTitle>
-                <DialogContent sx={{ pt: '20px !important' }}>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                        Agar peta lebih ringan, pilih satu nama frontliner. Marker akan ditampilkan dalam kelompok (cluster).
-                    </Typography>
-                    <FormControl fullWidth size="small">
-                        <InputLabel id="map-frontliner-label">Nama Frontliner</InputLabel>
-                        <Select labelId="map-frontliner-label" value={draftFrontliner} label="Nama Frontliner" onChange={(e) => setDraftFrontliner(e.target.value)}>
-                            {safeFrontliners.map((fl) => <MenuItem key={fl} value={fl}>{fl} ({outletCountByFrontliner.get(fl) || 0} outlet)</MenuItem>)}
-                        </Select>
-                    </FormControl>
-                    {safeFrontliners.length === 0 && <Alert severity="warning" sx={{ mt: 2 }}>Data frontliner belum tersedia.</Alert>}
-                </DialogContent>
-                <DialogActions sx={{ p: 2 }}>
-                    {mapReady && <Button onClick={() => setFrontlinerDialogOpen(false)}>Batal</Button>}
-                    <Button variant="contained" onClick={handleShowMap} disabled={!draftFrontliner || loadingMap}>
-                        {loadingMap ? 'Memuat...' : 'Tampilkan Peta'}
-                    </Button>
-                </DialogActions>
-            </Dialog>
+                {selectedOutlet && (
+                    <Grid size={{ xs: 12, md: 4 }}>
+                        <Card sx={{ height: '100%', minHeight: { md: 360 } }}>
+                            <CardContent>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                                    <Typography variant="h6" fontWeight={600}>Edit Outlet</Typography>
+                                    <IconButton onClick={() => setSelectedOutlet(null)} size="small" aria-label="Tutup detail outlet"><CloseIcon /></IconButton>
+                                </Box>
+                                <Typography variant="subtitle1" fontWeight={700}>{selectedOutlet.outletName || 'Outlet tanpa nama'}</Typography>
+                                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>ID: {selectedOutlet.outletId || '-'} | Account: {selectedOutlet.account || '-'}</Typography>
+                                <Typography variant="body2" sx={{ mb: 2, overflowWrap: 'anywhere' }}><b>Alamat:</b> {selectedOutlet.address || '-'}</Typography>
+                                <Grid container spacing={2}>
+                                    <Grid size={12}>
+                                        <FormControl fullWidth size="small">
+                                            <InputLabel id="map-edit-frontliner-label">Frontliner</InputLabel>
+                                            <Select labelId="map-edit-frontliner-label" label="Frontliner" value={editForm.frontliner || ''}
+                                                onChange={(e) => setEditForm((prev) => ({ ...prev, frontliner: e.target.value }))}>
+                                                {safeFrontliners.map((fl) => <MenuItem key={fl} value={fl}>{fl}</MenuItem>)}
+                                            </Select>
+                                        </FormControl>
+                                    </Grid>
+                                    <Grid size={12}>
+                                        <FormControl fullWidth size="small">
+                                            <InputLabel id="map-edit-rtg-label">RTG / Freezer</InputLabel>
+                                            <Select labelId="map-edit-rtg-label" label="RTG / Freezer" value={editForm.rtgFreezer || 'None'}
+                                                onChange={(e) => setEditForm((prev) => ({ ...prev, rtgFreezer: e.target.value }))}>
+                                                {RTG_LABELS.map((label) => <MenuItem key={label} value={label}>{label}</MenuItem>)}
+                                            </Select>
+                                        </FormControl>
+                                    </Grid>
+                                </Grid>
+                                <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                    <Button variant="contained" fullWidth onClick={handleSaveMapFields}>Simpan Frontliner / RTG</Button>
+                                    <Button variant="outlined" startIcon={<EditIcon />} fullWidth onClick={() => handleEdit(selectedOutlet)}>Edit Outlet Lainnya</Button>
+                                    <Button variant="outlined" color="error" fullWidth onClick={handleDelete}>Hapus Outlet</Button>
+                                </Box>
+                            </CardContent>
+                        </Card>
+                    </Grid>
+                )}
+            </Grid>
 
             <Dialog open={Boolean(editDialog)} onClose={() => setEditDialog(null)} maxWidth="sm" fullWidth>
                 <DialogTitle sx={{ bgcolor: 'primary.main', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
