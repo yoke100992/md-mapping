@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Alert, Box, Button, Card, CardContent, Checkbox, Chip,
     Divider, FormControlLabel, Grid, IconButton, InputAdornment,
@@ -7,7 +7,7 @@ import {
 } from '@mui/material';
 import {
     Lock as LockIcon,
-    LockOpen as UnlockIcon,
+    LockOpen as LockOpenIcon, // ✅ DIPERBAIKI: Diubah agar sesuai dengan penggunaan di bawah
     Save as SaveIcon,
     Settings as SettingsIcon,
     Visibility, VisibilityOff,
@@ -35,7 +35,7 @@ const SettingsPage = () => {
     const [busy, setBusy] = useState(false);
 
     // Inisialisasi selectedPages dari lockConfig
-    React.useEffect(() => {
+    useEffect(() => {
         setSelectedPages(lockConfig.lockedPages || []);
     }, [lockConfig.lockedPages]);
 
@@ -152,7 +152,7 @@ const SettingsPage = () => {
                     </Typography>
 
                     <Grid container spacing={2}>
-                        <Grid size={{ xs: 12, md: 6 }}>
+                        <Grid item xs={12} md={6}>
                             <TextField
                                 fullWidth
                                 label="Password Baru"
@@ -171,7 +171,7 @@ const SettingsPage = () => {
                                 }}
                             />
                         </Grid>
-                        <Grid size={{ xs: 12, md: 6 }}>
+                        <Grid item xs={12} md={6}>
                             <TextField
                                 fullWidth
                                 label="Konfirmasi Password"
@@ -240,6 +240,7 @@ const SettingsPage = () => {
                                         borderBottom: '1px solid #f0f0f0',
                                         '&:last-child': { borderBottom: 'none' },
                                         bgcolor: checked ? '#f5f9ff' : 'transparent',
+                                        cursor: 'pointer',
                                     }}
                                 >
                                     <ListItemIcon>
@@ -256,14 +257,17 @@ const SettingsPage = () => {
                                         secondary={page.path}
                                         primaryTypographyProps={{ fontWeight: 600 }}
                                     />
-                                    {checked && <LockIcon color="error" fontSize="small" />}
-                                    {!checked && <LockOpenIcon color="success" fontSize="small" />}
+                                    {checked ? (
+                                        <LockIcon color="error" fontSize="small" />
+                                    ) : (
+                                        <LockOpenIcon color="success" fontSize="small" />
+                                    )}
                                 </ListItem>
                             );
                         })}
                     </List>
 
-                    <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
+                    <Stack direction="row" spacing={1} sx={{ mt: 2 }} flexWrap="wrap">
                         <Button
                             variant="contained"
                             startIcon={<SaveIcon />}
@@ -292,7 +296,7 @@ const SettingsPage = () => {
             <Card>
                 <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
                     <Typography variant="h6" fontWeight={700} sx={{ mb: 1 }}>
-                        ?? Informasi
+                        ℹ️ Informasi
                     </Typography>
                     <Typography variant="body2" color="text.secondary" component="ul" sx={{ pl: 2 }}>
                         <li>Password disimpan dengan encoding aman di Firebase.</li>
