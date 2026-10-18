@@ -29,25 +29,25 @@ import {
     StorefrontOutlined as StorefrontIcon,
     Close as CloseIcon,
     SettingsOutlined as SettingsIcon,
-    KeyboardArrowRight as ArrowIcon,
+    ChevronRight as ChevronRightIcon,
 } from '@mui/icons-material';
 
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 
-const DRAWER_WIDTH = 260;
+const DRAWER_WIDTH = 258;
 const MOBILE_DRAWER_WIDTH = 'min(290px, 86vw)';
 
-const COLORS = {
-    navy: '#0B1220',
-    navyLight: '#111C30',
-    green: '#10B981',
-    greenDark: '#059669',
+const C = {
+    navy: '#101828',
+    navySoft: '#182438',
+    teal: '#0D9488',
+    tealLight: '#CCFBF1',
+    white: '#FFFFFF',
     text: '#172033',
-    muted: '#718096',
+    muted: '#64748B',
     border: '#E7ECF2',
     background: '#F5F7FB',
-    white: '#FFFFFF',
 };
 
 const menuItems = [
@@ -96,7 +96,11 @@ const isMenuActive = (pathname, path) =>
 
 const Layout = ({ children }) => {
     const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
+    const isMobile = useMediaQuery(
+        theme.breakpoints.down('md'),
+        { noSsr: true }
+    );
 
     const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -104,17 +108,13 @@ const Layout = ({ children }) => {
     const location = useLocation();
     const { outlets = [] } = useData();
 
-    const currentMenu =
-        menuItems.find((item) =>
-            isMenuActive(location.pathname, item.path)
-        );
+    const currentMenu = menuItems.find((item) =>
+        isMenuActive(location.pathname, item.path)
+    );
 
     const handleNavigate = (path) => {
         navigate(path);
-
-        if (isMobile) {
-            setDrawerOpen(false);
-        }
+        if (isMobile) setDrawerOpen(false);
     };
 
     const drawerContent = (
@@ -123,22 +123,21 @@ const Layout = ({ children }) => {
                 height: '100%',
                 display: 'flex',
                 flexDirection: 'column',
-                bgcolor: COLORS.navy,
-                color: '#E2E8F0',
                 overflow: 'hidden',
+                color: '#CBD5E1',
+                bgcolor: C.navy,
             }}
         >
             {/* BRAND */}
             <Box
                 sx={{
                     px: 2.5,
-                    py: 3,
+                    py: 2.5,
+                    minHeight: 88,
                     display: 'flex',
                     alignItems: 'center',
                     gap: 1.5,
-                    minHeight: 88,
-                    boxSizing: 'border-box',
-                    borderBottom: '1px solid rgba(255,255,255,0.07)',
+                    borderBottom: '1px solid rgba(255,255,255,.07)',
                 }}
             >
                 <Box
@@ -148,11 +147,11 @@ const Layout = ({ children }) => {
                         flexShrink: 0,
                         display: 'grid',
                         placeItems: 'center',
-                        borderRadius: '14px',
+                        borderRadius: '13px',
                         color: '#FFFFFF',
                         background:
-                            'linear-gradient(145deg, #34D399, #059669)',
-                        boxShadow: '0 6px 20px rgba(16,185,129,0.2)',
+                            'linear-gradient(145deg, #2DD4BF, #0D9488)',
+                        boxShadow: '0 5px 18px rgba(13,148,136,.24)',
                     }}
                 >
                     <StorefrontIcon sx={{ fontSize: 24 }} />
@@ -161,11 +160,11 @@ const Layout = ({ children }) => {
                 <Box sx={{ minWidth: 0, flex: 1 }}>
                     <Typography
                         sx={{
-                            color: '#FFFFFF',
+                            fontSize: 16,
                             fontWeight: 800,
-                            fontSize: 17,
-                            letterSpacing: '-0.5px',
-                            lineHeight: 1.3,
+                            color: '#FFFFFF',
+                            letterSpacing: '-.4px',
+                            lineHeight: 1.4,
                         }}
                     >
                         MD Mapping
@@ -173,10 +172,10 @@ const Layout = ({ children }) => {
 
                     <Typography
                         sx={{
-                            color: '#8492A8',
-                            fontSize: 11,
-                            mt: 0.4,
-                            letterSpacing: '0.2px',
+                            mt: 0.25,
+                            fontSize: 10.5,
+                            color: '#98A6BA',
+                            letterSpacing: '.2px',
                         }}
                     >
                         Marketing Distribution
@@ -188,9 +187,9 @@ const Layout = ({ children }) => {
                         onClick={() => setDrawerOpen(false)}
                         aria-label="Tutup menu"
                         sx={{
-                            color: '#94A3B8',
+                            color: '#CBD5E1',
                             '&:hover': {
-                                bgcolor: 'rgba(255,255,255,0.08)',
+                                bgcolor: 'rgba(255,255,255,.08)',
                             },
                         }}
                     >
@@ -199,18 +198,17 @@ const Layout = ({ children }) => {
                 )}
             </Box>
 
-            {/* SECTION TITLE */}
+            {/* SECTION LABEL */}
             <Box sx={{ px: 2.5, pt: 3, pb: 1.25 }}>
                 <Typography
                     sx={{
-                        color: '#64748B',
                         fontSize: 10,
                         fontWeight: 800,
-                        letterSpacing: '1.4px',
-                        textTransform: 'uppercase',
+                        color: '#7F8DA3',
+                        letterSpacing: '1.5px',
                     }}
                 >
-                    WORKSPACE
+                    MENU UTAMA
                 </Typography>
             </Box>
 
@@ -221,13 +219,10 @@ const Layout = ({ children }) => {
                     px: 1.5,
                     flex: 1,
                     overflowY: 'auto',
-                    overflowX: 'hidden',
-                    '&::-webkit-scrollbar': {
-                        width: 4,
-                    },
+                    '&::-webkit-scrollbar': { width: 4 },
                     '&::-webkit-scrollbar-thumb': {
-                        bgcolor: '#26344B',
-                        borderRadius: 8,
+                        bgcolor: '#344054',
+                        borderRadius: 5,
                     },
                 }}
             >
@@ -245,58 +240,51 @@ const Layout = ({ children }) => {
                             sx={{
                                 position: 'relative',
                                 minHeight: 54,
+                                mb: 0.6,
                                 px: 1.5,
                                 py: 1,
-                                mb: 0.6,
-                                borderRadius: '12px',
-                                color: selected
-                                    ? '#FFFFFF'
-                                    : '#94A3B8',
-                                transition: 'all 180ms ease',
+                                borderRadius: '11px',
+                                color: selected ? '#FFFFFF' : '#A5B1C2',
+                                transition: 'background-color .18s ease',
+
                                 '&::before': {
                                     content: '""',
                                     position: 'absolute',
                                     left: 0,
                                     top: '22%',
-                                    height: '56%',
+                                    bottom: '22%',
                                     width: 3,
-                                    borderRadius: '0 5px 5px 0',
-                                    bgcolor: selected
-                                        ? COLORS.green
-                                        : 'transparent',
+                                    borderRadius: '0 4px 4px 0',
+                                    bgcolor: selected ? '#2DD4BF' : 'transparent',
                                 },
+
                                 '& .MuiListItemIcon-root': {
-                                    minWidth: 40,
-                                    color: selected
-                                        ? '#34D399'
-                                        : '#718096',
-                                    transition: 'color 180ms ease',
+                                    minWidth: 39,
+                                    color: selected ? '#5EEAD4' : '#8492A6',
                                 },
+
                                 '&.Mui-selected': {
-                                    bgcolor:
-                                        'linear-gradient(90deg, rgba(16,185,129,0.18), rgba(16,185,129,0.06))',
-                                    backgroundColor:
-                                        'rgba(16,185,129,0.12)',
+                                    background:
+                                        'linear-gradient(100deg, rgba(13,148,136,.25), rgba(13,148,136,.09))',
+                                    color: '#FFFFFF',
                                 },
+
                                 '&.Mui-selected:hover': {
-                                    backgroundColor:
-                                        'rgba(16,185,129,0.18)',
+                                    backgroundColor: 'rgba(13,148,136,.3)',
                                 },
+
                                 '&:hover': {
-                                    bgcolor:
-                                        'rgba(255,255,255,0.045)',
+                                    bgcolor: 'rgba(255,255,255,.055)',
                                 },
                             }}
                         >
-                            <ListItemIcon>
-                                {item.icon}
-                            </ListItemIcon>
+                            <ListItemIcon>{item.icon}</ListItemIcon>
 
                             <ListItemText
                                 primary={item.label}
                                 secondary={item.description}
                                 primaryTypographyProps={{
-                                    fontSize: 13,
+                                    fontSize: 12.8,
                                     fontWeight: selected ? 750 : 600,
                                     noWrap: true,
                                 }}
@@ -305,45 +293,35 @@ const Layout = ({ children }) => {
                                     noWrap: true,
                                     sx: {
                                         mt: 0.25,
-                                        color: selected
-                                            ? '#6EE7B7'
-                                            : '#718096',
+                                        color: selected ? '#99F6E4' : '#8391A6',
                                     },
                                 }}
                             />
 
-                            {item.path === '/map' &&
-                                outlets.length > 0 && (
-                                    <Chip
-                                        label={outlets.length.toLocaleString(
-                                            'id-ID'
-                                        )}
-                                        size="small"
-                                        sx={{
-                                            height: 23,
-                                            maxWidth: 64,
-                                            bgcolor: selected
-                                                ? 'rgba(16,185,129,0.18)'
-                                                : 'rgba(255,255,255,0.07)',
-                                            color: selected
-                                                ? '#6EE7B7'
-                                                : '#CBD5E1',
-                                            fontSize: 10,
-                                            fontWeight: 800,
-                                            '& .MuiChip-label': {
-                                                px: 1,
-                                            },
-                                        }}
-                                    />
-                                )}
+                            {item.path === '/map' && outlets.length > 0 && (
+                                <Chip
+                                    label={outlets.length.toLocaleString('id-ID')}
+                                    size="small"
+                                    sx={{
+                                        height: 22,
+                                        maxWidth: 66,
+                                        bgcolor: selected
+                                            ? 'rgba(45,212,191,.15)'
+                                            : 'rgba(255,255,255,.08)',
+                                        color: selected ? '#99F6E4' : '#CBD5E1',
+                                        fontSize: 9.5,
+                                        fontWeight: 800,
+                                        '& .MuiChip-label': { px: 0.8 },
+                                    }}
+                                />
+                            )}
 
                             {selected && (
-                                <ArrowIcon
+                                <ChevronRightIcon
                                     sx={{
+                                        ml: 0.4,
                                         fontSize: 18,
-                                        ml: 0.5,
-                                        color: '#34D399',
-                                        opacity: 0.9,
+                                        color: '#5EEAD4',
                                     }}
                                 />
                             )}
@@ -355,25 +333,23 @@ const Layout = ({ children }) => {
             {/* OUTLET SUMMARY */}
             <Box
                 sx={{
-                    mx: 2,
-                    mb: 2,
-                    mt: 1.5,
+                    mx: 1.75,
+                    my: 1.5,
                     p: 1.75,
-                    borderRadius: '14px',
-                    bgcolor: 'rgba(255,255,255,0.035)',
-                    border: '1px solid rgba(255,255,255,0.075)',
+                    border: '1px solid rgba(255,255,255,.09)',
+                    borderRadius: '13px',
+                    bgcolor: 'rgba(255,255,255,.035)',
                 }}
             >
                 <Typography
                     sx={{
-                        color: '#8492A8',
-                        fontSize: 10,
+                        color: '#91A0B5',
+                        fontSize: 9.5,
                         fontWeight: 700,
-                        letterSpacing: '0.8px',
-                        textTransform: 'uppercase',
+                        letterSpacing: '.9px',
                     }}
                 >
-                    Total outlet terdata
+                    TOTAL OUTLET TERDATA
                 </Typography>
 
                 <Box
@@ -386,11 +362,11 @@ const Layout = ({ children }) => {
                 >
                     <Typography
                         sx={{
-                            color: '#FFFFFF',
                             fontSize: 25,
                             fontWeight: 800,
+                            color: '#FFFFFF',
+                            letterSpacing: '-.8px',
                             lineHeight: 1.2,
-                            letterSpacing: '-0.8px',
                         }}
                     >
                         {outlets.length.toLocaleString('id-ID')}
@@ -398,9 +374,9 @@ const Layout = ({ children }) => {
 
                     <Typography
                         sx={{
-                            color: '#34D399',
-                            fontSize: 11,
-                            fontWeight: 600,
+                            fontSize: 10.5,
+                            fontWeight: 700,
+                            color: '#5EEAD4',
                         }}
                     >
                         outlet
@@ -408,69 +384,60 @@ const Layout = ({ children }) => {
                 </Box>
             </Box>
 
-            {/* ADMIN PROFILE */}
+            {/* ADMIN */}
+            <Divider sx={{ borderColor: 'rgba(255,255,255,.08)' }} />
+
             <Box
                 sx={{
-                    p: 2,
-                    borderTop: '1px solid rgba(255,255,255,0.07)',
-                    bgcolor: 'rgba(0,0,0,0.08)',
+                    px: 2,
+                    py: 2,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1.25,
                 }}
             >
-                <Box
+                <Avatar
                     sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1.25,
+                        width: 36,
+                        height: 36,
+                        bgcolor: '#CCFBF1',
+                        color: '#0F766E',
+                        fontSize: 11,
+                        fontWeight: 800,
                     }}
                 >
-                    <Avatar
+                    MD
+                </Avatar>
+
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography
                         sx={{
-                            width: 38,
-                            height: 38,
-                            bgcolor: '#D1FAE5',
-                            color: '#047857',
+                            color: '#F8FAFC',
                             fontSize: 12,
-                            fontWeight: 800,
-                            border: '2px solid rgba(52,211,153,0.35)',
+                            fontWeight: 700,
                         }}
                     >
-                        MD
-                    </Avatar>
+                        Administrator
+                    </Typography>
 
-                    <Box sx={{ minWidth: 0, flex: 1 }}>
-                        <Typography
-                            sx={{
-                                color: '#F8FAFC',
-                                fontSize: 12.5,
-                                fontWeight: 700,
-                            }}
-                        >
-                            Administrator
-                        </Typography>
+                    <Typography
+                        sx={{ color: '#91A0B5', fontSize: 10.5, mt: 0.2 }}
+                    >
+                        MD Mapping System
+                    </Typography>
+                </Box>
 
-                        <Typography
-                            sx={{
-                                color: '#8492A8',
-                                fontSize: 10.5,
-                                mt: 0.25,
-                            }}
-                        >
-                            MD Mapping System
-                        </Typography>
-                    </Box>
-
+                <Tooltip title="Status antarmuka">
                     <Box
                         sx={{
                             width: 8,
                             height: 8,
-                            flexShrink: 0,
                             borderRadius: '50%',
                             bgcolor: '#34D399',
-                            boxShadow:
-                                '0 0 0 4px rgba(52,211,153,0.1)',
+                            boxShadow: '0 0 0 4px rgba(52,211,153,.12)',
                         }}
                     />
-                </Box>
+                </Tooltip>
             </Box>
         </Box>
     );
@@ -480,40 +447,33 @@ const Layout = ({ children }) => {
             sx={{
                 display: 'flex',
                 minHeight: '100vh',
-                bgcolor: COLORS.background,
+                width: '100%',
+                bgcolor: C.background,
             }}
         >
             <CssBaseline />
 
-            {/* TOP BAR */}
+            {/* HEADER */}
             <AppBar
                 position="fixed"
                 elevation={0}
                 sx={{
                     zIndex: theme.zIndex.drawer + 1,
-                    bgcolor: 'rgba(255,255,255,0.94)',
-                    backdropFilter: 'blur(14px)',
-                    color: COLORS.text,
-                    borderBottom: `1px solid ${COLORS.border}`,
                     width: isMobile
                         ? '100%'
                         : `calc(100% - ${DRAWER_WIDTH}px)`,
                     ml: isMobile ? 0 : `${DRAWER_WIDTH}px`,
-                    transition: theme.transitions.create(
-                        ['width', 'margin'],
-                        {
-                            easing: theme.transitions.easing.sharp,
-                            duration:
-                                theme.transitions.duration.leavingScreen,
-                        }
-                    ),
+                    bgcolor: 'rgba(255,255,255,.96)',
+                    color: C.text,
+                    backdropFilter: 'blur(12px)',
+                    borderBottom: `1px solid ${C.border}`,
                 }}
             >
                 <Toolbar
                     sx={{
-                        minHeight: '72px !important',
+                        minHeight: '68px !important',
                         px: { xs: 1.5, sm: 3 },
-                        gap: { xs: 0.5, sm: 1 },
+                        gap: 1,
                     }}
                 >
                     {isMobile && (
@@ -521,26 +481,26 @@ const Layout = ({ children }) => {
                             onClick={() => setDrawerOpen(true)}
                             aria-label="Buka menu"
                             sx={{
-                                mr: 0.5,
-                                color: '#475569',
-                                borderRadius: '10px',
-                                '&:hover': {
-                                    bgcolor: '#F1F5F9',
-                                },
+                                width: 40,
+                                height: 40,
+                                color: C.text,
+                                border: `1px solid ${C.border}`,
+                                borderRadius: '11px',
+                                '&:hover': { bgcolor: '#F1F5F9' },
                             }}
                         >
                             <MenuIcon />
                         </IconButton>
                     )}
 
-                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
                         <Typography
                             noWrap
                             sx={{
-                                color: COLORS.text,
+                                fontSize: { xs: 14.5, sm: 16 },
                                 fontWeight: 800,
-                                fontSize: { xs: 15, sm: 17 },
-                                letterSpacing: '-0.4px',
+                                color: C.text,
+                                letterSpacing: '-.3px',
                                 lineHeight: 1.4,
                             }}
                         >
@@ -550,10 +510,10 @@ const Layout = ({ children }) => {
                         <Typography
                             noWrap
                             sx={{
-                                color: COLORS.muted,
+                                display: { xs: 'none', sm: 'block' },
+                                color: C.muted,
                                 fontSize: 11.5,
                                 mt: 0.25,
-                                display: { xs: 'none', sm: 'block' },
                             }}
                         >
                             {currentMenu?.description ||
@@ -561,38 +521,34 @@ const Layout = ({ children }) => {
                         </Typography>
                     </Box>
 
-                    <Tooltip title="Jumlah outlet terdata">
-                        <Chip
-                            icon={
-                                <StorefrontIcon
-                                    sx={{
-                                        fontSize: '17px !important',
-                                    }}
-                                />
-                            }
-                            label={`${outlets.length.toLocaleString(
-                                'id-ID'
-                            )} Outlet`}
-                            size="small"
-                            sx={{
-                                height: 34,
-                                flexShrink: 0,
-                                borderRadius: '10px',
-                                bgcolor: '#ECFDF5',
-                                color: '#047857',
-                                border: '1px solid #A7F3D0',
-                                fontSize: 11.5,
-                                fontWeight: 800,
-                                '& .MuiChip-icon': {
-                                    color: COLORS.greenDark,
-                                    ml: 1,
-                                },
-                                '& .MuiChip-label': {
-                                    px: 1,
-                                },
-                            }}
-                        />
-                    </Tooltip>
+                    <Chip
+                        icon={
+                            <StorefrontIcon
+                                sx={{ fontSize: '17px !important' }}
+                            />
+                        }
+                        label={`${outlets.length.toLocaleString('id-ID')} Outlet`}
+                        size="small"
+                        sx={{
+                            height: 32,
+                            flexShrink: 0,
+                            maxWidth: { xs: 132, sm: 'none' },
+                            bgcolor: '#F0FDFA',
+                            color: '#0F766E',
+                            border: '1px solid #CCFBF1',
+                            fontSize: 10.5,
+                            fontWeight: 800,
+                            '& .MuiChip-icon': {
+                                color: C.teal,
+                                ml: 0.8,
+                            },
+                            '& .MuiChip-label': {
+                                px: 1,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                            },
+                        }}
+                    />
                 </Toolbar>
             </AppBar>
 
@@ -601,44 +557,34 @@ const Layout = ({ children }) => {
                 variant={isMobile ? 'temporary' : 'permanent'}
                 open={isMobile ? drawerOpen : true}
                 onClose={() => setDrawerOpen(false)}
-                ModalProps={{
-                    keepMounted: true,
-                }}
+                ModalProps={{ keepMounted: true }}
                 sx={{
-                    width: isMobile
-                        ? MOBILE_DRAWER_WIDTH
-                        : DRAWER_WIDTH,
+                    width: isMobile ? MOBILE_DRAWER_WIDTH : DRAWER_WIDTH,
                     flexShrink: 0,
                     '& .MuiDrawer-paper': {
-                        width: isMobile
-                            ? MOBILE_DRAWER_WIDTH
-                            : DRAWER_WIDTH,
+                        width: isMobile ? MOBILE_DRAWER_WIDTH : DRAWER_WIDTH,
                         maxWidth: '86vw',
                         boxSizing: 'border-box',
-                        border: 'none',
-                        bgcolor: COLORS.navy,
+                        bgcolor: C.navy,
+                        border: 0,
                         overflowX: 'hidden',
-                        boxShadow: isMobile
-                            ? '12px 0 40px rgba(0,0,0,0.2)'
-                            : 'none',
                     },
                 }}
             >
                 {drawerContent}
             </Drawer>
 
-            {/* MAIN CONTENT */}
+            {/* PAGE CONTENT */}
             <Box
                 component="main"
                 sx={{
-                    flexGrow: 1,
-                    // Drawer permanent already occupies its own width.
-                    // Do not add another desktop margin here.
+                    flex: '1 1 0%',
+                    width: 0,
                     minWidth: 0,
                     minHeight: '100vh',
                     display: 'flex',
                     flexDirection: 'column',
-                    pt: '72px',
+                    pt: '68px',
                 }}
             >
                 <Box
@@ -646,18 +592,10 @@ const Layout = ({ children }) => {
                         width: '100%',
                         maxWidth: 1800,
                         mx: 'auto',
-                        px: {
-                            xs: 1.5,
-                            sm: 3,
-                            lg: 4,
-                        },
-                        py: {
-                            xs: 2,
-                            sm: 3,
-                            lg: 3.5,
-                        },
+                        px: { xs: 1.5, sm: 3, lg: 4 },
+                        py: { xs: 2, sm: 3, lg: 3.5 },
                         flex: 1,
-                        boxSizing: 'border-box',
+                        minWidth: 0,
                     }}
                 >
                     {children}
@@ -667,35 +605,24 @@ const Layout = ({ children }) => {
                 <Box
                     component="footer"
                     sx={{
-                        mt: 'auto',
-                        px: { xs: 2, sm: 3, lg: 4 },
+                        px: { xs: 1.75, sm: 3, lg: 4 },
                         py: 2,
-                        borderTop: `1px solid ${COLORS.border}`,
-                        bgcolor: 'rgba(255,255,255,0.65)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        gap: 1,
                         flexWrap: 'wrap',
+                        gap: 1,
+                        borderTop: `1px solid ${C.border}`,
+                        bgcolor: '#FFFFFF',
                     }}
                 >
-                    <Typography
-                        sx={{
-                            color: '#8792A5',
-                            fontSize: 10.5,
-                        }}
-                    >
+                    <Typography sx={{ color: '#8491A5', fontSize: 10.5 }}>
                         © {new Date().getFullYear()} MD Mapping
-                        {' · '}Marketing Distribution Tracker
+                        {' · '}Marketing Distribution
                     </Typography>
 
-                    <Typography
-                        sx={{
-                            color: '#8792A5',
-                            fontSize: 10.5,
-                        }}
-                    >
-                        Outlet Management System · v1.0
+                    <Typography sx={{ color: '#8491A5', fontSize: 10.5 }}>
+                        Outlet Management System v1.0
                     </Typography>
                 </Box>
             </Box>
