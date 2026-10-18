@@ -12,7 +12,7 @@ import ManageOutletsPage from './components/ManageOutletsPage';
 import UploadPage from './components/UploadPage';
 import EditPage from './components/EditPage';
 import MapPage from './components/MapPage';
-
+import TemplatePage from './components/TemplatePage';
 import SettingsPage from './components/SettingsPage';
 import Layout from './components/Layout';
 
@@ -50,7 +50,11 @@ function App() {
                                     <MapPage />
                                 </ProtectedRoute>
                             } />
-                            
+                            <Route path="template" element={
+                                <ProtectedRoute pageId="template">
+                                    <TemplatePage />
+                                </ProtectedRoute>
+                            } />
                             <Route path="settings" element={
                                 <ProtectedRoute pageId="settings">
                                     <SettingsPage />
