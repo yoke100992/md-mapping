@@ -129,7 +129,7 @@ const Layout = () => {
                         borderRadius: 2.5,
                         display: 'grid',
                         placeItems: 'center',
-                        bgcolor: '#0D9488',
+                        bgcolor: '#0 0D9488',
                         color: '#fff',
                     }}
                 >
@@ -262,7 +262,7 @@ const Layout = () => {
                     p: 1.5,
                     borderRadius: 2.5,
                     bgcolor: 'rgba(255,255,255,.055)',
-                    border: '1px solid rgba(255,255,255,.08)',
+                    spx: '1px solid rgba(255,255,255,.08)',
                 }}
             >
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
