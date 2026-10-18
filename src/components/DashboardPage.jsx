@@ -4,7 +4,7 @@ import {
 } from '@mui/material';
 import {
     Store as StoreIcon, People as PeopleIcon, AccountTree as AccountIcon,
-    AcUnit, Whatshot, Air, Block, Dashboard as DashboardIcon, BarChart as BarChartIcon, FilterAlt as FilterIcon
+    AcUnit, Whatshot, Storefront as FreezerStoreIcon, Dashboard as DashboardIcon, BarChart as BarChartIcon, FilterAlt as FilterIcon, LocationOn as LocationIcon, CheckCircleOutline as CheckIcon
 } from '@mui/icons-material';
 import { useData } from '../context/DataContext';
 import { getFrontlinerColor } from '../utils/constants';
@@ -33,8 +33,10 @@ const DashboardPage = () => {
     const stats = useMemo(() => {
         const byAccount = {}, byRTG = {};
         visibleOutlets.forEach((o) => {
-            byAccount[o.account] = (byAccount[o.account] || 0) + 1;
-            byRTG[o.rtgFreezer || 'None'] = (byRTG[o.rtgFreezer || 'None'] || 0) + 1;
+            const account = o.account || 'Belum ditentukan';
+            byAccount[account] = (byAccount[account] || 0) + 1;
+            const rtg = o.rtgFreezer || 'Belum ditentukan';
+            byRTG[rtg] = (byRTG[rtg] || 0) + 1;
         });
         return { byAccount, byRTG };
     }, [visibleOutlets]);
@@ -44,10 +46,10 @@ const DashboardPage = () => {
 
     // Fungsi untuk render ikon RTG
     const renderRTGIcon = (rtg) => {
-        if (rtg === 'Freezer') return <AcUnit sx={{ fontSize: 48, color: '#2196F3' }} />;
-        if (rtg === 'RTG') return <Whatshot sx={{ fontSize: 48, color: '#FF9800' }} />;
-        if (rtg === 'Chiller') return <Air sx={{ fontSize: 48, color: '#4CAF50' }} />;
-        return <Block sx={{ fontSize: 48, color: '#999' }} />;
+        if (rtg === 'Freezer') return <AcUnit sx={{ fontSize: 42, color: '#2196F3' }} />;
+        if (String(rtg).toLowerCase() === 'freezer toko') return <FreezerStoreIcon sx={{ fontSize: 42, color: '#0D9488' }} />;
+        if (rtg === 'RTG') return <Whatshot sx={{ fontSize: 42, color: '#FF9800' }} />;
+        return <LocationIcon sx={{ fontSize: 42, color: '#94A3B8' }} />;
     };
 
     return (
@@ -80,7 +82,13 @@ const DashboardPage = () => {
                     <StatCard icon={<AccountIcon sx={{ color: '#FF9800', fontSize: 32 }} />} label="Account" value={Object.keys(stats.byAccount).length} color="#FF9800" />
                 </Grid>
                 <Grid size={{ xs: 6, md: 3 }}>
-                    <StatCard icon={<AcUnit sx={{ color: '#2196F3', fontSize: 32 }} />} label="RTG/Freezer" value={visibleOutlets.filter((o) => o.rtgFreezer && o.rtgFreezer !== 'None').length} color="#2196F3" />
+                    <StatCard icon={<AcUnit sx={{ color: '#2196F3', fontSize: 32 }} />} label="RTG / Freezer" value={visibleOutlets.filter((o) => ['RTG', 'Freezer', 'Freezer toko', 'Freezer Toko'].includes(o.rtgFreezer)).length} color="#2196F3" />
+                </Grid>
+                <Grid size={{ xs: 6, md: 3 }}>
+                    <StatCard icon={<CheckIcon sx={{ color: '#0D9488', fontSize: 32 }} />} label="Koordinat Valid" value={visibleOutlets.filter((o) => Number.isFinite(Number(o.latitude)) && Number.isFinite(Number(o.longitude)) && o.latitude !== '' && o.longitude !== '').length} color="#0D9488" onClick={() => navigate('/map')} />
+                </Grid>
+                <Grid size={{ xs: 6, md: 3 }}>
+                    <StatCard icon={<PeopleIcon sx={{ color: '#64748B', fontSize: 32 }} />} label="Belum Ada Frontliner" value={visibleOutlets.filter((o) => !o.frontliner).length} color="#64748B" onClick={() => navigate('/manage')} />
                 </Grid>
             </Grid>
 
@@ -127,7 +135,7 @@ const DashboardPage = () => {
                             <Grid container spacing={2}>
                                 {frontliners.map((fl) => {
                                     const count = visibleOutlets.filter((o) => o.frontliner === fl).length;
-                                    const percentage = outlets.length > 0 ? Math.round((visibleOutlets.length ? count / visibleOutlets.length : 0) * 100) : 0;
+                                    const percentage = visibleOutlets.length > 0 ? Math.round((count / visibleOutlets.length) * 100) : 0;
                                     const color = getColor(fl);
                                     return (
                                         <Grid size={{ xs: 12, sm: 6, md: 4 }} key={fl}>
