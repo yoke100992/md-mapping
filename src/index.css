@@ -1,27 +1,170 @@
+
 :root {
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #1E293B;
-  background: #F4F7FA;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #172033;
+  background: #F5F7FB;
+
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-optical-sizing: auto;
+
+  --color-primary: #0D9488;
+  --color-primary-dark: #0F766E;
+  --color-text: #172033;
+  --color-muted: #64748B;
+  --color-border: #E7ECF2;
+  --color-background: #F5F7FB;
+  --color-surface: #FFFFFF;
+
+  --radius-card: 14px;
+  --radius-control: 10px;
+
+  --shadow-card: 0 2px 8px rgba(15, 23, 42, 0.035);
 }
 
-* { box-sizing: border-box; }
-html, body, #root { margin: 0; min-height: 100%; width: 100%; }
-body { min-width: 320px; min-height: 100vh; }
-button, input, textarea, select { font: inherit; }
-a { color: inherit; }
-::selection { background: rgba(13, 148, 136, .18); }
-*:focus-visible { outline: 2px solid #0D9488; outline-offset: 2px; }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
 
-/* Shared lightweight surfaces */
-.page-heading { margin-bottom: 20px; }
-.leaflet-container { font-family: inherit; }
-.leaflet-popup-content-wrapper, .leaflet-popup-tip { box-shadow: 0 4px 18px rgba(15, 23, 42, .12); }
-.MuiTableContainer-root { scrollbar-width: thin; scrollbar-color: #CBD5E1 transparent; }
+html {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  width: 100%;
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+
+  color: var(--color-text);
+  background: var(--color-background);
+}
+
+#root {
+  width: 100%;
+  min-width: 0;
+  min-height: 100vh;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+img,
+svg {
+  max-width: 100%;
+}
+
+::selection {
+  color: var(--color-text);
+  background: rgba(13, 148, 136, 0.18);
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Page layout */
+
+.page-heading {
+  min-width: 0;
+  margin-bottom: 20px;
+}
+
+.page-heading h1,
+.page-heading h2,
+.page-heading h3 {
+  overflow-wrap: anywhere;
+}
+
+/* Prevent content from forcing horizontal overflow */
+
+.MuiContainer-root,
+.MuiBox-root,
+.MuiPaper-root,
+.MuiCard-root {
+  min-width: 0;
+}
+
+/* Tables */
+
+.MuiTableContainer-root {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #CBD5E1 transparent;
+  -webkit-overflow-scrolling: touch;
+}
+
+.MuiTableCell-root {
+  border-color: var(--color-border);
+}
+
+/* Maps */
+
+.leaflet-container {
+  font-family: inherit;
+  width: 100%;
+}
+
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.12);
+}
+
+/* Consistent surfaces */
+
+.MuiCard-root,
+.MuiPaper-root {
+  background-image: none;
+}
+
+/* Mobile */
+
 @media (max-width: 600px) {
-  .page-heading { margin-bottom: 14px; }
+  .page-heading {
+    margin-bottom: 14px;
+  }
+
+  .page-heading h1 {
+    font-size: 1.5rem;
+    line-height: 1.3;
+  }
+
+  .MuiTableCell-root {
+    padding: 10px 12px;
+  }
+}
+
+/* Reduced motion accessibility */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
