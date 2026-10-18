@@ -10,7 +10,12 @@ import {
     Chip,
     CircularProgress,
     Divider,
+    FormControl,
     Grid,
+    InputLabel,
+    MenuItem,
+    Paper,
+    Select,
     Stack,
     Table,
     TableBody,
@@ -20,7 +25,6 @@ import {
     TableRow,
     TextField,
     Typography,
-    Paper,
 } from '@mui/material';
 
 import {
@@ -631,7 +635,6 @@ const EditPage = () => {
                             <Grid size={{ xs: 12, md: 4 }}>
                                 <FormControl fullWidth>
                                     <InputLabel id="bulk-field-label">Set To</InputLabel>
-                                    {/* Note: Using standard Select here for "Set To" is fine as it's single selection */}
                                     <Select
                                         labelId="bulk-field-label"
                                         value={field}
