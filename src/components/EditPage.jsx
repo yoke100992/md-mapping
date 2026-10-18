@@ -65,7 +65,6 @@ const RESERVED_FIELDS = new Set([
     'city',
 ]);
 
-// Membuat key Firebase yang aman dari nama kolom.
 const makeColumnKey = (name) => {
     const slug = normalize(name)
         .toLowerCase()
@@ -79,7 +78,6 @@ const makeColumnKey = (name) => {
     return `custom_${slug}`;
 };
 
-// Mengubah custom_tanggal_kunjungan menjadi Tanggal Kunjungan.
 const getColumnLabel = (key) => {
     if (!key.startsWith('custom_')) return key;
 
@@ -98,7 +96,6 @@ const EditPage = () => {
         updateOutlets,
     } = useData();
 
-    // Filter states - semua independen
     const [filters, setFilters] = useState({
         frontliner: [],
         account: [],
@@ -116,7 +113,6 @@ const EditPage = () => {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
 
-    // Mendeteksi kolom khusus yang sudah tersimpan di data outlet.
     const customColumns = useMemo(() => {
         const keys = new Set();
 
@@ -133,7 +129,6 @@ const EditPage = () => {
         );
     }, [outlets]);
 
-    // Tambahkan custom columns ke filter states
     const allFilterFields = useMemo(() => {
         return [
             'frontliner',
@@ -144,7 +139,6 @@ const EditPage = () => {
         ];
     }, [customColumns]);
 
-    // Extract unique values untuk setiap field (untuk opsi Autocomplete)
     const filterOptions = useMemo(() => {
         const options = {
             frontliner: frontliners,
@@ -153,25 +147,21 @@ const EditPage = () => {
             rtgFreezer: [...RTG_LABELS],
         };
 
-        // Tambahkan custom columns
         customColumns.forEach((col) => {
             options[col] = [];
         });
 
         outlets.forEach((outlet) => {
-            // Account
             const account = normalize(outlet.account);
             if (account && !options.account.includes(account)) {
                 options.account.push(account);
             }
 
-            // District
             const district = normalize(outlet.district);
             if (district && !options.district.includes(district)) {
                 options.district.push(district);
             }
 
-            // Custom columns
             customColumns.forEach((col) => {
                 const value = normalize(outlet[col]);
                 if (value && !options[col].includes(value)) {
@@ -180,7 +170,6 @@ const EditPage = () => {
             });
         });
 
-        // Sort semua options (kecuali rtgFreezer & frontliner yang sudah punya urutan tertentu)
         Object.keys(options).forEach((key) => {
             if (key !== 'rtgFreezer' && key !== 'frontliner') {
                 options[key].sort((a, b) => a.localeCompare(b, 'id'));
@@ -190,50 +179,69 @@ const EditPage = () => {
         return options;
     }, [outlets, frontliners, customColumns]);
 
-    // Filter outlets berdasarkan semua filter yang aktif (independen / logika AND)
+    // ✅ BARU: Cek apakah ada filter yang aktif
+    const hasActiveFilter = useMemo(() => {
+        return allFilterFields.some((f) => filters[f] && filters[f].length > 0);
+    }, [filters, allFilterFields]);
+
+    const activeFilterCount = useMemo(() => {
+        let count = 0;
+        allFilterFields.forEach((f) => {
+            if (filters[f] && filters[f].length > 0) {
+                count++;
+            }
+        });
+        return count;
+    }, [filters, allFilterFields]);
+
+    // ✅ PERUBAHAN: Hanya proses filter jika ada filter aktif
     const filteredOutlets = useMemo(() => {
-        return outlets.filter((outlet) => {
-            const matchesFrontliner =
-                filters.frontliner.length === 0 ||
-                filters.frontliner.includes(normalize(outlet.frontliner));
+        // Jika tidak ada filter yang dipilih, jangan load data
+        if (!hasActiveFilter) return [];
 
-            const matchesAccount =
-                filters.account.length === 0 ||
-                filters.account.includes(normalize(outlet.account));
+        return outlets
+            .filter((outlet) => {
+                const matchesFrontliner =
+                    filters.frontliner.length === 0 ||
+                    filters.frontliner.includes(normalize(outlet.frontliner));
 
-            const matchesDistrict =
-                filters.district.length === 0 ||
-                filters.district.includes(normalize(outlet.district));
+                const matchesAccount =
+                    filters.account.length === 0 ||
+                    filters.account.includes(normalize(outlet.account));
 
-            const matchesRTG =
-                filters.rtgFreezer.length === 0 ||
-                filters.rtgFreezer.includes(outlet.rtgFreezer || 'None');
+                const matchesDistrict =
+                    filters.district.length === 0 ||
+                    filters.district.includes(normalize(outlet.district));
 
-            // Check custom columns
-            let matchesCustom = true;
-            customColumns.forEach((col) => {
-                if (filters[col] && filters[col].length > 0) {
-                    const value = normalize(outlet[col]);
-                    if (!filters[col].includes(value)) {
-                        matchesCustom = false;
+                const matchesRTG =
+                    filters.rtgFreezer.length === 0 ||
+                    filters.rtgFreezer.includes(outlet.rtgFreezer || 'None');
+
+                let matchesCustom = true;
+                customColumns.forEach((col) => {
+                    if (filters[col] && filters[col].length > 0) {
+                        const value = normalize(outlet[col]);
+                        if (!filters[col].includes(value)) {
+                            matchesCustom = false;
+                        }
                     }
-                }
-            });
+                });
 
-            return (
-                matchesFrontliner &&
-                matchesAccount &&
-                matchesDistrict &&
-                matchesRTG &&
-                matchesCustom
+                return (
+                    matchesFrontliner &&
+                    matchesAccount &&
+                    matchesDistrict &&
+                    matchesRTG &&
+                    matchesCustom
+                );
+            })
+            .sort((a, b) =>
+                normalize(a.outletName).localeCompare(
+                    normalize(b.outletName),
+                    'id'
+                )
             );
-        }).sort((a, b) =>
-            normalize(a.outletName).localeCompare(
-                normalize(b.outletName),
-                'id'
-            )
-        );
-    }, [outlets, filters, customColumns]);
+    }, [outlets, filters, customColumns, hasActiveFilter]);
 
     const visibleIds = filteredOutlets.map((outlet) => String(outlet.id));
 
@@ -247,17 +255,6 @@ const EditPage = () => {
 
     const someVisibleSelected =
         selectedVisibleCount > 0 && !allVisibleSelected;
-
-    // Hitung jumlah filter aktif
-    const activeFilterCount = useMemo(() => {
-        let count = 0;
-        allFilterFields.forEach((f) => {
-            if (filters[f] && filters[f].length > 0) {
-                count++;
-            }
-        });
-        return count;
-    }, [filters, allFilterFields]);
 
     const handleFilterChange = (fieldName, values) => {
         setFilters((prev) => ({
@@ -334,7 +331,6 @@ const EditPage = () => {
         let fieldLabel = '';
         let value = normalize(newValue);
 
-        // Mode membuat kolom baru.
         if (field === NEW_COLUMN) {
             const columnName = normalize(customColumnName);
 
@@ -440,7 +436,7 @@ const EditPage = () => {
                 Filter toko, pilih outlet, ubah data massal, atau tambahkan kolom baru sesuai kebutuhan.
             </Typography>
 
-            {/* 1. FILTER OUTLET - SEMUA KOLOM SEARCHABLE */}
+            {/* 1. FILTER OUTLET */}
             <Card sx={{ mb: 3 }}>
                 <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
                     <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }} justifyContent="space-between">
@@ -454,7 +450,6 @@ const EditPage = () => {
                     </Stack>
 
                     <Grid container spacing={2}>
-                        {/* Frontliner - Searchable Multi-select */}
                         <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
                             <Autocomplete
                                 multiple
@@ -468,7 +463,6 @@ const EditPage = () => {
                             />
                         </Grid>
 
-                        {/* Account - Searchable Multi-select */}
                         <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
                             <Autocomplete
                                 multiple
@@ -482,7 +476,6 @@ const EditPage = () => {
                             />
                         </Grid>
 
-                        {/* District - Searchable Multi-select */}
                         <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
                             <Autocomplete
                                 multiple
@@ -496,7 +489,6 @@ const EditPage = () => {
                             />
                         </Grid>
 
-                        {/* RTG / Freezer - Searchable Multi-select */}
                         <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
                             <Autocomplete
                                 multiple
@@ -510,7 +502,6 @@ const EditPage = () => {
                             />
                         </Grid>
 
-                        {/* Custom Columns - Searchable Multi-select */}
                         {customColumns.map((col) => (
                             <Grid key={col} size={{ xs: 12, sm: 6, lg: 3 }}>
                                 <Autocomplete
@@ -526,7 +517,6 @@ const EditPage = () => {
                             </Grid>
                         ))}
 
-                        {/* Reset Button */}
                         <Grid size={{ xs: 12 }}>
                             <Button
                                 variant="outlined"
@@ -554,76 +544,88 @@ const EditPage = () => {
                         <Box>
                             <Typography variant="h6" fontWeight={700}>2. Daftar Toko</Typography>
                             <Typography variant="body2" color="text.secondary">
-                                {filteredOutlets.length.toLocaleString('id-ID')} outlet ditampilkan
+                                {hasActiveFilter
+                                    ? `${filteredOutlets.length.toLocaleString('id-ID')} outlet ditampilkan`
+                                    : 'Belum ada filter yang dipilih'}
                             </Typography>
                         </Box>
-                        <Chip
-                            icon={<SelectedIcon />}
-                            label={`${selectedVisibleCount} dipilih`}
-                            color={selectedVisibleCount ? 'primary' : 'default'}
-                        />
+                        {hasActiveFilter && (
+                            <Chip
+                                icon={<SelectedIcon />}
+                                label={`${selectedVisibleCount} dipilih`}
+                                color={selectedVisibleCount ? 'primary' : 'default'}
+                            />
+                        )}
                     </Stack>
 
-                    {filteredOutlets.length === 0 ? (
+                    {/* ✅ PERUBAHAN: Tampilkan pesan jika belum ada filter */}
+                    {!hasActiveFilter ? (
+                        <Alert severity="info">
+                            Pilih minimal satu filter di atas untuk memuat daftar toko.
+                        </Alert>
+                    ) : filteredOutlets.length === 0 ? (
                         <Alert severity="warning">Tidak ada outlet yang sesuai dengan filter aktif.</Alert>
                     ) : (
-                        <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 480, overflow: 'auto' }}>
-                            <Table size="small" stickyHeader>
-                                <TableHead>
-                                    <TableRow>
-                                        <TableCell padding="checkbox" sx={{ bgcolor: '#F1F5F9' }}>
-                                            <Checkbox
-                                                checked={allVisibleSelected}
-                                                indeterminate={someVisibleSelected}
-                                                onChange={(event) => toggleAllVisible(event.target.checked)}
-                                                inputProps={{ 'aria-label': 'Pilih semua outlet' }}
-                                            />
-                                        </TableCell>
-                                        {['Outlet ID', 'Outlet Name', 'Frontliner', 'Account', 'District', 'RTG / Freezer', ...customColumns.map(getColumnLabel)].map((heading) => (
-                                            <TableCell key={heading} sx={{ bgcolor: '#F1F5F9', fontWeight: 700, whiteSpace: 'nowrap' }}>
-                                                {heading}
+                        <>
+                            <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 480, overflow: 'auto' }}>
+                                <Table size="small" stickyHeader>
+                                    <TableHead>
+                                        <TableRow>
+                                            <TableCell padding="checkbox" sx={{ bgcolor: '#F1F5F9' }}>
+                                                <Checkbox
+                                                    checked={allVisibleSelected}
+                                                    indeterminate={someVisibleSelected}
+                                                    onChange={(event) => toggleAllVisible(event.target.checked)}
+                                                    inputProps={{ 'aria-label': 'Pilih semua outlet' }}
+                                                />
                                             </TableCell>
-                                        ))}
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {filteredOutlets.map((outlet) => {
-                                        const checked = selectedIds.includes(String(outlet.id));
-                                        return (
-                                            <TableRow key={outlet.id} hover selected={checked} onClick={() => toggleOutlet(outlet.id)} sx={{ cursor: 'pointer' }}>
-                                                <TableCell padding="checkbox">
-                                                    <Checkbox
-                                                        checked={checked}
-                                                        onClick={(event) => event.stopPropagation()}
-                                                        onChange={() => toggleOutlet(outlet.id)}
-                                                        inputProps={{ 'aria-label': `Pilih ${outlet.outletName || outlet.outletId}` }}
-                                                    />
+                                            {['Outlet ID', 'Outlet Name', 'Frontliner', 'Account', 'District', 'RTG / Freezer', ...customColumns.map(getColumnLabel)].map((heading) => (
+                                                <TableCell key={heading} sx={{ bgcolor: '#F1F5F9', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                                                    {heading}
                                                 </TableCell>
-                                                <TableCell>{outlet.outletId || '-'}</TableCell>
-                                                <TableCell sx={{ minWidth: 180 }}>{outlet.outletName || '-'}</TableCell>
-                                                <TableCell>{outlet.frontliner || '-'}</TableCell>
-                                                <TableCell>{outlet.account || '-'}</TableCell>
-                                                <TableCell>{outlet.district || '-'}</TableCell>
-                                                <TableCell>{outlet.rtgFreezer || '-'}</TableCell>
-                                                {customColumns.map((key) => (
-                                                    <TableCell key={key} sx={{ minWidth: 140 }}>{outlet[key] ?? '-'}</TableCell>
-                                                ))}
-                                            </TableRow>
-                                        );
-                                    })}
-                                </TableBody>
-                            </Table>
-                        </TableContainer>
-                    )}
+                                            ))}
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {filteredOutlets.map((outlet) => {
+                                            const checked = selectedIds.includes(String(outlet.id));
+                                            return (
+                                                <TableRow key={outlet.id} hover selected={checked} onClick={() => toggleOutlet(outlet.id)} sx={{ cursor: 'pointer' }}>
+                                                    <TableCell padding="checkbox">
+                                                        <Checkbox
+                                                            checked={checked}
+                                                            onClick={(event) => event.stopPropagation()}
+                                                            onChange={() => toggleOutlet(outlet.id)}
+                                                            inputProps={{ 'aria-label': `Pilih ${outlet.outletName || outlet.outletId}` }}
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell>{outlet.outletId || '-'}</TableCell>
+                                                    <TableCell sx={{ minWidth: 180 }}>{outlet.outletName || '-'}</TableCell>
+                                                    <TableCell>{outlet.frontliner || '-'}</TableCell>
+                                                    <TableCell>{outlet.account || '-'}</TableCell>
+                                                    <TableCell>{outlet.district || '-'}</TableCell>
+                                                    <TableCell>{outlet.rtgFreezer || '-'}</TableCell>
+                                                    {customColumns.map((key) => (
+                                                        <TableCell key={key} sx={{ minWidth: 140 }}>{outlet[key] ?? '-'}</TableCell>
+                                                    ))}
+                                                </TableRow>
+                                            );
+                                        })}
+                                    </TableBody>
+                                </Table>
+                            </TableContainer>
 
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
-                        Centang toko tertentu untuk mengubah pilihan saja. Jika tidak ada yang dicentang, Apply berlaku untuk semua outlet hasil filter.
-                    </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
+                                Centang toko tertentu untuk mengubah pilihan saja. Jika tidak ada yang dicentang, Apply berlaku untuk semua outlet hasil filter.
+                            </Typography>
+                        </>
+                    )}
                 </CardContent>
             </Card>
 
             {/* 3. SET TO DAN APPLY */}
-            {filteredOutlets.length > 0 && (
+            {/* ✅ PERUBAHAN: Hanya muncul jika ada filter aktif DAN ada hasil */}
+            {hasActiveFilter && filteredOutlets.length > 0 && (
                 <Card>
                     <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
                         <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
