@@ -1,0 +1,2 @@
+/* App-specific styling is intentionally minimal; the shared design system lives in theme.js and index.css. */
+#root { min-height: 100vh; }
