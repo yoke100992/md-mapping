@@ -98,6 +98,17 @@ export const DataProvider = ({ children }) => {
         });
     }, []);
 
+    // ✅ BARU: Hapus permanen satu outlet dari deletedOutlets
+    const permanentlyDeleteOutlet = useCallback(async (id) => {
+        if (id == null) throw new Error('ID outlet tidak ditemukan.');
+        await remove(ref(db, `deletedOutlets/${id}`));
+    }, []);
+
+    // ✅ BARU: Hapus permanen SEMUA outlet dari deletedOutlets
+    const clearDeletedOutlets = useCallback(async () => {
+        await remove(ref(db, 'deletedOutlets'));
+    }, []);
+
     const updateCustomColor = useCallback(async (frontliner, color) => {
         if (!frontliner) throw new Error('Nama frontliner tidak valid.');
         const colorRef = ref(db, `customColors/${frontliner}`);
@@ -122,10 +133,11 @@ export const DataProvider = ({ children }) => {
     const value = useMemo(() => ({
         outlets, deletedOutlets, frontliners, customColors,
         addOutlets, updateOutlet, updateOutlets, removeOutlet, clearAll, restoreOutlet,
+        permanentlyDeleteOutlet, clearDeletedOutlets, // ✅ Ditambahkan
         updateCustomColor, getOutletsByFrontliner,
     }), [
         outlets, deletedOutlets, frontliners, customColors, addOutlets, updateOutlet,
-        updateOutlets, removeOutlet, clearAll, restoreOutlet, updateCustomColor, getOutletsByFrontliner,
+        updateOutlets, removeOutlet, clearAll, restoreOutlet, permanentlyDeleteOutlet, clearDeletedOutlets, updateCustomColor, getOutletsByFrontliner,
     ]);
 
     return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
