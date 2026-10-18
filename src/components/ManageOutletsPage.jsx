@@ -14,7 +14,7 @@ import { useData } from '../context/DataContext';
 import { getFrontlinerColor } from '../utils/constants';
 
 // Pilihan khusus untuk edit RTG / Freezer di halaman Kelola Outlet
-const MANAGE_RTG_LABELS = ['RTG', 'Freezer', 'Freezer Toko'];
+const MANAGE_RTG_LABELS = ['RTG', 'Freezer', 'Freezer toko'];
 
 const BATCH_SIZE = 50; // Tampilkan 50 data per batch
 
@@ -99,11 +99,15 @@ const ManageOutletsPage = () => {
 
   const handleCancelEdit = () => setEditingCell(null);
 
-  const handleConfirmDelete = () => {
-    if (deleteDialog) {
-      removeOutlet(deleteDialog.id);
-      showAlert(`Outlet "${deleteDialog.outletName}" berhasil dihapus!`, 'success');
+  const handleConfirmDelete = async () => {
+    if (!deleteDialog) return;
+    try {
+      await removeOutlet(deleteDialog.id);
+      showAlert(`Outlet "${deleteDialog.outletName}" dipindahkan ke daftar Deleted.`, 'success');
       setDeleteDialog(null);
+    } catch (error) {
+      console.error('Gagal mengarsipkan outlet:', error);
+      showAlert('Outlet gagal dihapus. Periksa koneksi lalu coba lagi.', 'error');
     }
   };
 
@@ -116,7 +120,7 @@ const ManageOutletsPage = () => {
   };
 
   const getRTGIcon = (rtg) => {
-    if (rtg === 'Freezer' || rtg === 'Freezer Toko') return <AcUnit fontSize="small" sx={{ color: '#2196F3' }} />;
+    if (rtg === 'Freezer' || String(rtg).toLowerCase() === 'freezer toko') return <AcUnit fontSize="small" sx={{ color: '#2196F3' }} />;
     if (rtg === 'RTG') return <Whatshot fontSize="small" sx={{ color: '#FF9800' }} />;
     if (rtg === 'Chiller') return <Air fontSize="small" sx={{ color: '#4CAF50' }} />;
     return <Block fontSize="small" sx={{ color: '#999' }} />;
@@ -462,7 +466,7 @@ const ManageOutletsPage = () => {
             </Box>
           )}
           <Typography variant="body2" color="error" sx={{ mt: 2, fontWeight: 600 }}>
-            ?? Tindakan ini tidak dapat dibatalkan!
+            Outlet akan dipindahkan ke arsip Deleted dan dapat di-restore melalui menu Upload.
           </Typography>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
