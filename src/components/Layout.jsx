@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import {
     AppBar,
@@ -16,23 +15,31 @@ import {
     Avatar,
     Chip,
     Divider,
-    CssBaseline,
     Tooltip,
 } from '@mui/material';
 
 import {
     Menu as MenuIcon,
-    UploadFile as UploadIcon,
-    Edit as EditIcon,
-    MapOutlined as MapIcon,
-    DashboardOutlined as DashboardIcon,
-    StorefrontOutlined as StorefrontIcon,
+    Dashboard as DashboardIcon,
+    Map as MapIcon,
+    Store as StoreIcon,
+    People as PeopleIcon,
+    Inventory2 as InventoryIcon,
+    Assessment as AssessmentIcon,
+    Settings as SettingsIcon,
+    Logout as LogoutIcon,
+    ChevronLeft as ChevronLeftIcon,
+    LocationOn as LocationIcon,
     Close as CloseIcon,
-    SettingsOutlined as SettingsIcon,
-    ChevronRight as ChevronRightIcon,
 } from '@mui/icons-material';
 
-import { useNavigate, useLocation } from 'react-router-dom';
+import {
+    NavLink,
+    Outlet,
+    useLocation,
+    useNavigate,
+} from 'react-router-dom';
+
 import { useData } from '../context/DataContext';
 
 const DRAWER_WIDTH = 258;
@@ -50,394 +57,481 @@ const C = {
     background: '#F5F7FB',
 };
 
-const menuItems = [
+const menuGroups = [
     {
-        label: 'Dashboard',
-        description: 'Ringkasan data',
-        icon: <DashboardIcon />,
-        path: '/',
+        title: 'MENU UTAMA',
+        items: [
+            {
+                label: 'Dashboard',
+                path: '/',
+                icon: DashboardIcon,
+            },
+            {
+                label: 'Mapping Outlet',
+                path: '/mapping',
+                icon: MapIcon,
+            },
+            {
+                label: 'Data Outlet',
+                path: '/outlets',
+                icon: StoreIcon,
+            },
+            {
+                label: 'Data SPG',
+                path: '/spg',
+                icon: PeopleIcon,
+            },
+        ],
     },
     {
-        label: 'Kelola Outlet',
-        description: 'Data dan penugasan',
-        icon: <StorefrontIcon />,
-        path: '/manage',
+        title: 'MANAJEMEN DATA',
+        items: [
+            {
+                label: 'Produk',
+                path: '/products',
+                icon: InventoryIcon,
+            },
+            {
+                label: 'Laporan',
+                path: '/reports',
+                icon: AssessmentIcon,
+            },
+        ],
     },
     {
-        label: 'Upload Data',
-        description: 'Impor data outlet',
-        icon: <UploadIcon />,
-        path: '/upload',
-    },
-    {
-        label: 'Edit Data',
-        description: 'Perbarui data outlet',
-        icon: <EditIcon />,
-        path: '/edit',
-    },
-    {
-        label: 'View Map',
-        description: 'Peta sebaran outlet',
-        icon: <MapIcon />,
-        path: '/map',
-    },
-    {
-        label: 'Settings',
-        description: 'Pengaturan sistem',
-        icon: <SettingsIcon />,
-        path: '/settings',
+        title: 'PENGATURAN',
+        items: [
+            {
+                label: 'Pengaturan',
+                path: '/settings',
+                icon: SettingsIcon,
+            },
+        ],
     },
 ];
 
-const isMenuActive = (pathname, path) =>
-    path === '/'
-        ? pathname === '/'
-        : pathname === path || pathname.startsWith(`${path}/`);
-
-const Layout = ({ children }) => {
+export default function Layout({ children }) {
     const theme = useTheme();
-
-    const isMobile = useMediaQuery(
-        theme.breakpoints.down('md'),
-        { noSsr: true }
-    );
-
-    const [drawerOpen, setDrawerOpen] = useState(false);
-
-    const navigate = useNavigate();
+    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const location = useLocation();
+    const navigate = useNavigate();
+
     const { outlets = [] } = useData();
 
-    const currentMenu = menuItems.find((item) =>
-        isMenuActive(location.pathname, item.path)
-    );
+    const [mobileOpen, setMobileOpen] = useState(false);
+    const [desktopCollapsed, setDesktopCollapsed] = useState(false);
 
-    const handleNavigate = (path) => {
-        navigate(path);
-        if (isMobile) setDrawerOpen(false);
+    const drawerWidth = desktopCollapsed ? 82 : DRAWER_WIDTH;
+
+    const currentPage =
+        menuGroups
+            .flatMap((group) => group.items)
+            .find((item) => {
+                if (item.path === '/') {
+                    return location.pathname === '/';
+                }
+
+                return (
+                    location.pathname === item.path ||
+                    location.pathname.startsWith(`${item.path}/`)
+                );
+            })?.label || 'MD Mapping System';
+
+    const handleDrawerToggle = () => {
+        setMobileOpen((previous) => !previous);
     };
 
-    const drawerContent = (
+    const handleNavigate = () => {
+        if (isMobile) {
+            setMobileOpen(false);
+        }
+    };
+
+    const sidebarContent = (
         <Box
             sx={{
                 height: '100%',
                 display: 'flex',
                 flexDirection: 'column',
-                overflow: 'hidden',
-                color: '#CBD5E1',
                 bgcolor: C.navy,
+                color: C.white,
+                overflowX: 'hidden',
             }}
         >
-            {/* BRAND */}
+            {/* Logo */}
             <Box
                 sx={{
-                    px: 2.5,
-                    py: 2.5,
-                    minHeight: 88,
+                    minHeight: 76,
+                    px: desktopCollapsed && !isMobile ? 2 : 2.5,
                     display: 'flex',
                     alignItems: 'center',
+                    justifyContent:
+                        desktopCollapsed && !isMobile
+                            ? 'center'
+                            : 'space-between',
+                    borderBottom: '1px solid rgba(255,255,255,0.08)',
                     gap: 1.5,
-                    borderBottom: '1px solid rgba(255,255,255,.07)',
                 }}
             >
                 <Box
                     sx={{
-                        width: 44,
-                        height: 44,
-                        flexShrink: 0,
-                        display: 'grid',
-                        placeItems: 'center',
-                        borderRadius: '13px',
-                        color: '#FFFFFF',
-                        background:
-                            'linear-gradient(145deg, #2DD4BF, #0D9488)',
-                        boxShadow: '0 5px 18px rgba(13,148,136,.24)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1.5,
+                        minWidth: 0,
                     }}
                 >
-                    <StorefrontIcon sx={{ fontSize: 24 }} />
-                </Box>
-
-                <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Typography
+                    <Box
                         sx={{
-                            fontSize: 16,
-                            fontWeight: 800,
-                            color: '#FFFFFF',
-                            letterSpacing: '-.4px',
-                            lineHeight: 1.4,
+                            width: 42,
+                            height: 42,
+                            flexShrink: 0,
+                            borderRadius: 2.5,
+                            bgcolor: C.teal,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            boxShadow: '0 4px 14px rgba(13,148,136,0.25)',
                         }}
                     >
-                        MD Mapping
-                    </Typography>
+                        <LocationIcon
+                            sx={{
+                                fontSize: 25,
+                                color: C.white,
+                            }}
+                        />
+                    </Box>
 
-                    <Typography
-                        sx={{
-                            mt: 0.25,
-                            fontSize: 10.5,
-                            color: '#98A6BA',
-                            letterSpacing: '.2px',
-                        }}
-                    >
-                        Marketing Distribution
-                    </Typography>
+                    {(!desktopCollapsed || isMobile) && (
+                        <Box sx={{ minWidth: 0 }}>
+                            <Typography
+                                sx={{
+                                    fontWeight: 800,
+                                    fontSize: 15,
+                                    letterSpacing: 0.2,
+                                    color: C.white,
+                                    lineHeight: 1.4,
+                                    whiteSpace: 'nowrap',
+                                }}
+                            >
+                                MD Mapping
+                            </Typography>
+
+                            <Typography
+                                sx={{
+                                    fontSize: 10,
+                                    color: '#98A6B9',
+                                    letterSpacing: 1.2,
+                                    fontWeight: 600,
+                                    whiteSpace: 'nowrap',
+                                }}
+                            >
+                                MANAGEMENT SYSTEM
+                            </Typography>
+                        </Box>
+                    )}
                 </Box>
 
                 {isMobile && (
                     <IconButton
-                        onClick={() => setDrawerOpen(false)}
+                        onClick={handleDrawerToggle}
                         aria-label="Tutup menu"
-                        sx={{
-                            color: '#CBD5E1',
-                            '&:hover': {
-                                bgcolor: 'rgba(255,255,255,.08)',
-                            },
-                        }}
+                        sx={{ color: '#CBD5E1' }}
                     >
                         <CloseIcon />
                     </IconButton>
                 )}
             </Box>
 
-            {/* SECTION LABEL */}
-            <Box sx={{ px: 2.5, pt: 3, pb: 1.25 }}>
-                <Typography
+            {/* Ringkasan */}
+            {(!desktopCollapsed || isMobile) && (
+                <Box
                     sx={{
-                        fontSize: 10,
-                        fontWeight: 800,
-                        color: '#7F8DA3',
-                        letterSpacing: '1.5px',
+                        mx: 2,
+                        mt: 2.5,
+                        mb: 1.5,
+                        p: 1.75,
+                        borderRadius: 2.5,
+                        bgcolor: 'rgba(255,255,255,0.045)',
+                        border: '1px solid rgba(255,255,255,0.07)',
                     }}
                 >
-                    MENU UTAMA
-                </Typography>
-            </Box>
+                    <Typography
+                        sx={{
+                            fontSize: 11,
+                            color: '#98A6B9',
+                            mb: 0.75,
+                        }}
+                    >
+                        Total outlet terdaftar
+                    </Typography>
 
-            {/* NAVIGATION */}
-            <List
-                disablePadding
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                        }}
+                    >
+                        <Typography
+                            sx={{
+                                fontSize: 25,
+                                fontWeight: 800,
+                                color: C.white,
+                                lineHeight: 1.2,
+                            }}
+                        >
+                            {outlets.length.toLocaleString('id-ID')}
+                        </Typography>
+
+                        <StoreIcon
+                            sx={{
+                                color: C.teal,
+                                fontSize: 25,
+                            }}
+                        />
+                    </Box>
+                </Box>
+            )}
+
+            {/* Navigasi */}
+            <Box
                 sx={{
-                    px: 1.5,
                     flex: 1,
                     overflowY: 'auto',
-                    '&::-webkit-scrollbar': { width: 4 },
+                    overflowX: 'hidden',
+                    px: 1.5,
+                    py: 1,
+                    '&::-webkit-scrollbar': {
+                        width: 4,
+                    },
                     '&::-webkit-scrollbar-thumb': {
-                        bgcolor: '#344054',
-                        borderRadius: 5,
+                        bgcolor: 'rgba(255,255,255,0.16)',
+                        borderRadius: 10,
                     },
                 }}
             >
-                {menuItems.map((item) => {
-                    const selected = isMenuActive(
-                        location.pathname,
-                        item.path
-                    );
+                {menuGroups.map((group) => (
+                    <Box key={group.title} sx={{ mb: 2 }}>
+                        {(!desktopCollapsed || isMobile) && (
+                            <Typography
+                                sx={{
+                                    px: 1.25,
+                                    pt: 1.5,
+                                    pb: 1,
+                                    fontSize: 9,
+                                    fontWeight: 800,
+                                    color: '#718096',
+                                    letterSpacing: 1.3,
+                                }}
+                            >
+                                {group.title}
+                            </Typography>
+                        )}
 
-                    return (
-                        <ListItemButton
-                            key={item.path}
-                            selected={selected}
-                            onClick={() => handleNavigate(item.path)}
+                        <List disablePadding>
+                            {group.items.map((item) => {
+                                const Icon = item.icon;
+
+                                const active =
+                                    item.path === '/'
+                                        ? location.pathname === '/'
+                                        : location.pathname === item.path ||
+                                          location.pathname.startsWith(
+                                              `${item.path}/`
+                                          );
+
+                                const button = (
+                                    <ListItemButton
+                                        component={NavLink}
+                                        to={item.path}
+                                        onClick={handleNavigate}
+                                        selected={active}
+                                        sx={{
+                                            minHeight: 45,
+                                            px:
+                                                desktopCollapsed && !isMobile
+                                                    ? 0
+                                                    : 1.5,
+                                            mb: 0.5,
+                                            borderRadius: 2,
+                                            justifyContent:
+                                                desktopCollapsed && !isMobile
+                                                    ? 'center'
+                                                    : 'flex-start',
+                                            color: active
+                                                ? C.white
+                                                : '#AAB5C5',
+                                            bgcolor: active
+                                                ? `${C.teal} !important`
+                                                : 'transparent',
+                                            transition:
+                                                'background-color 0.2s ease, color 0.2s ease',
+                                            '&:hover': {
+                                                bgcolor: active
+                                                    ? `${C.teal} !important`
+                                                    : 'rgba(255,255,255,0.07)',
+                                                color: C.white,
+                                            },
+                                            '& .MuiListItemIcon-root': {
+                                                minWidth:
+                                                    desktopCollapsed && !isMobile
+                                                        ? 0
+                                                        : 38,
+                                                color: 'inherit',
+                                                justifyContent: 'center',
+                                            },
+                                            '& .MuiListItemText-primary': {
+                                                fontSize: 13,
+                                                fontWeight: active ? 700 : 500,
+                                                whiteSpace: 'nowrap',
+                                            },
+                                        }}
+                                    >
+                                        <ListItemIcon>
+                                            <Icon sx={{ fontSize: 20 }} />
+                                        </ListItemIcon>
+
+                                        {(!desktopCollapsed || isMobile) && (
+                                            <ListItemText
+                                                primary={item.label}
+                                            />
+                                        )}
+
+                                        {active &&
+                                            (!desktopCollapsed || isMobile) && (
+                                                <Box
+                                                    sx={{
+                                                        width: 5,
+                                                        height: 5,
+                                                        borderRadius: '50%',
+                                                        bgcolor: C.white,
+                                                        ml: 1,
+                                                    }}
+                                                />
+                                            )}
+                                    </ListItemButton>
+                                );
+
+                                return (
+                                    <React.Fragment key={item.path}>
+                                        {desktopCollapsed && !isMobile ? (
+                                            <Tooltip
+                                                title={item.label}
+                                                placement="right"
+                                                arrow
+                                            >
+                                                {button}
+                                            </Tooltip>
+                                        ) : (
+                                            button
+                                        )}
+                                    </React.Fragment>
+                                );
+                            })}
+                        </List>
+                    </Box>
+                ))}
+            </Box>
+
+            {/* Footer sidebar */}
+            <Divider
+                sx={{
+                    borderColor: 'rgba(255,255,255,0.09)',
+                }}
+            />
+
+            <Box
+                sx={{
+                    p: 1.5,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent:
+                        desktopCollapsed && !isMobile
+                            ? 'center'
+                            : 'space-between',
+                    gap: 1,
+                }}
+            >
+                {(!desktopCollapsed || isMobile) && (
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1.25,
+                            minWidth: 0,
+                        }}
+                    >
+                        <Avatar
                             sx={{
-                                position: 'relative',
-                                minHeight: 54,
-                                mb: 0.6,
-                                px: 1.5,
-                                py: 1,
-                                borderRadius: '11px',
-                                color: selected ? '#FFFFFF' : '#A5B1C2',
-                                transition: 'background-color .18s ease',
+                                width: 34,
+                                height: 34,
+                                bgcolor: '#26384F',
+                                color: '#CCFBF1',
+                                fontSize: 13,
+                                fontWeight: 700,
+                            }}
+                        >
+                            MD
+                        </Avatar>
 
-                                '&::before': {
-                                    content: '""',
-                                    position: 'absolute',
-                                    left: 0,
-                                    top: '22%',
-                                    bottom: '22%',
-                                    width: 3,
-                                    borderRadius: '0 4px 4px 0',
-                                    bgcolor: selected ? '#2DD4BF' : 'transparent',
-                                },
+                        <Box sx={{ minWidth: 0 }}>
+                            <Typography
+                                sx={{
+                                    color: C.white,
+                                    fontSize: 12,
+                                    fontWeight: 700,
+                                }}
+                            >
+                                Mapping Team
+                            </Typography>
 
-                                '& .MuiListItemIcon-root': {
-                                    minWidth: 39,
-                                    color: selected ? '#5EEAD4' : '#8492A6',
-                                },
+                            <Typography
+                                sx={{
+                                    color: '#98A6B9',
+                                    fontSize: 10,
+                                }}
+                            >
+                                Administrator
+                            </Typography>
+                        </Box>
+                    </Box>
+                )}
 
-                                '&.Mui-selected': {
-                                    background:
-                                        'linear-gradient(100deg, rgba(13,148,136,.25), rgba(13,148,136,.09))',
-                                    color: '#FFFFFF',
-                                },
-
-                                '&.Mui-selected:hover': {
-                                    backgroundColor: 'rgba(13,148,136,.3)',
-                                },
-
+                {!isMobile && (
+                    <Tooltip
+                        title={
+                            desktopCollapsed
+                                ? 'Perlebar sidebar'
+                                : 'Perkecil sidebar'
+                        }
+                        placement="right"
+                    >
+                        <IconButton
+                            onClick={() =>
+                                setDesktopCollapsed((previous) => !previous)
+                            }
+                            size="small"
+                            aria-label="Ubah ukuran sidebar"
+                            sx={{
+                                color: '#98A6B9',
                                 '&:hover': {
-                                    bgcolor: 'rgba(255,255,255,.055)',
+                                    color: C.white,
+                                    bgcolor: 'rgba(255,255,255,0.08)',
                                 },
                             }}
                         >
-                            <ListItemIcon>{item.icon}</ListItemIcon>
-
-                            <ListItemText
-                                primary={item.label}
-                                secondary={item.description}
-                                primaryTypographyProps={{
-                                    fontSize: 12.8,
-                                    fontWeight: selected ? 750 : 600,
-                                    noWrap: true,
-                                }}
-                                secondaryTypographyProps={{
-                                    fontSize: 10.5,
-                                    noWrap: true,
-                                    sx: {
-                                        mt: 0.25,
-                                        color: selected ? '#99F6E4' : '#8391A6',
-                                    },
+                            <ChevronLeftIcon
+                                sx={{
+                                    transform: desktopCollapsed
+                                        ? 'rotate(180deg)'
+                                        : 'none',
+                                    transition: 'transform 0.2s ease',
                                 }}
                             />
-
-                            {item.path === '/map' && outlets.length > 0 && (
-                                <Chip
-                                    label={outlets.length.toLocaleString('id-ID')}
-                                    size="small"
-                                    sx={{
-                                        height: 22,
-                                        maxWidth: 66,
-                                        bgcolor: selected
-                                            ? 'rgba(45,212,191,.15)'
-                                            : 'rgba(255,255,255,.08)',
-                                        color: selected ? '#99F6E4' : '#CBD5E1',
-                                        fontSize: 9.5,
-                                        fontWeight: 800,
-                                        '& .MuiChip-label': { px: 0.8 },
-                                    }}
-                                />
-                            )}
-
-                            {selected && (
-                                <ChevronRightIcon
-                                    sx={{
-                                        ml: 0.4,
-                                        fontSize: 18,
-                                        color: '#5EEAD4',
-                                    }}
-                                />
-                            )}
-                        </ListItemButton>
-                    );
-                })}
-            </List>
-
-            {/* OUTLET SUMMARY */}
-            <Box
-                sx={{
-                    mx: 1.75,
-                    my: 1.5,
-                    p: 1.75,
-                    border: '1px solid rgba(255,255,255,.09)',
-                    borderRadius: '13px',
-                    bgcolor: 'rgba(255,255,255,.035)',
-                }}
-            >
-                <Typography
-                    sx={{
-                        color: '#91A0B5',
-                        fontSize: 9.5,
-                        fontWeight: 700,
-                        letterSpacing: '.9px',
-                    }}
-                >
-                    TOTAL OUTLET TERDATA
-                </Typography>
-
-                <Box
-                    sx={{
-                        display: 'flex',
-                        alignItems: 'baseline',
-                        gap: 1,
-                        mt: 0.75,
-                    }}
-                >
-                    <Typography
-                        sx={{
-                            fontSize: 25,
-                            fontWeight: 800,
-                            color: '#FFFFFF',
-                            letterSpacing: '-.8px',
-                            lineHeight: 1.2,
-                        }}
-                    >
-                        {outlets.length.toLocaleString('id-ID')}
-                    </Typography>
-
-                    <Typography
-                        sx={{
-                            fontSize: 10.5,
-                            fontWeight: 700,
-                            color: '#5EEAD4',
-                        }}
-                    >
-                        outlet
-                    </Typography>
-                </Box>
-            </Box>
-
-            {/* ADMIN */}
-            <Divider sx={{ borderColor: 'rgba(255,255,255,.08)' }} />
-
-            <Box
-                sx={{
-                    px: 2,
-                    py: 2,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1.25,
-                }}
-            >
-                <Avatar
-                    sx={{
-                        width: 36,
-                        height: 36,
-                        bgcolor: '#CCFBF1',
-                        color: '#0F766E',
-                        fontSize: 11,
-                        fontWeight: 800,
-                    }}
-                >
-                    MD
-                </Avatar>
-
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography
-                        sx={{
-                            color: '#F8FAFC',
-                            fontSize: 12,
-                            fontWeight: 700,
-                        }}
-                    >
-                        Administrator
-                    </Typography>
-
-                    <Typography
-                        sx={{ color: '#91A0B5', fontSize: 10.5, mt: 0.2 }}
-                    >
-                        MD Mapping System
-                    </Typography>
-                </Box>
-
-                <Tooltip title="Status antarmuka">
-                    <Box
-                        sx={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: '50%',
-                            bgcolor: '#34D399',
-                            boxShadow: '0 0 0 4px rgba(52,211,153,.12)',
-                        }}
-                    />
-                </Tooltip>
+                        </IconButton>
+                    </Tooltip>
+                )}
             </Box>
         </Box>
     );
@@ -447,187 +541,229 @@ const Layout = ({ children }) => {
             sx={{
                 display: 'flex',
                 minHeight: '100vh',
-                width: '100%',
-                bgcolor: C.background,
+                bgcolor: theme.palette.background.default || C.background,
+                color: theme.palette.text.primary || C.text,
             }}
         >
-            <CssBaseline />
-
-            {/* HEADER */}
+            {/* Topbar */}
             <AppBar
                 position="fixed"
                 elevation={0}
                 sx={{
-                    zIndex: theme.zIndex.drawer + 1,
-                    width: isMobile
-                        ? '100%'
-                        : `calc(100% - ${DRAWER_WIDTH}px)`,
-                    ml: isMobile ? 0 : `${DRAWER_WIDTH}px`,
-                    bgcolor: 'rgba(255,255,255,.96)',
-                    color: C.text,
+                    zIndex: (muiTheme) => muiTheme.zIndex.drawer + 1,
+                    ml: { md: `${drawerWidth}px` },
+                    width: {
+                        md: `calc(100% - ${drawerWidth}px)`,
+                    },
+                    bgcolor: 'rgba(255,255,255,0.94)',
+                    color: theme.palette.text.primary || C.text,
                     backdropFilter: 'blur(12px)',
-                    borderBottom: `1px solid ${C.border}`,
+                    borderBottom: `1px solid ${
+                        theme.palette.divider || C.border
+                    }`,
+                    transition: theme.transitions.create(
+                        ['width', 'margin'],
+                        {
+                            duration: theme.transitions.duration.shorter,
+                        }
+                    ),
                 }}
             >
                 <Toolbar
                     sx={{
-                        minHeight: '68px !important',
-                        px: { xs: 1.5, sm: 3 },
-                        gap: 1,
+                        minHeight: { xs: 60, md: 68 },
+                        px: { xs: 2, md: 3 },
+                        gap: 1.5,
                     }}
                 >
-                    {isMobile && (
+                    {isMobile ? (
                         <IconButton
-                            onClick={() => setDrawerOpen(true)}
+                            edge="start"
+                            onClick={handleDrawerToggle}
                             aria-label="Buka menu"
                             sx={{
-                                width: 40,
-                                height: 40,
-                                color: C.text,
-                                border: `1px solid ${C.border}`,
-                                borderRadius: '11px',
-                                '&:hover': { bgcolor: '#F1F5F9' },
+                                color: theme.palette.text.primary || C.text,
                             }}
                         >
                             <MenuIcon />
                         </IconButton>
+                    ) : (
+                        <Box
+                            sx={{
+                                width: 4,
+                                height: 26,
+                                borderRadius: 4,
+                                bgcolor: C.teal,
+                            }}
+                        />
                     )}
 
                     <Box sx={{ flex: 1, minWidth: 0 }}>
                         <Typography
-                            noWrap
                             sx={{
-                                fontSize: { xs: 14.5, sm: 16 },
+                                fontSize: { xs: 15, md: 17 },
                                 fontWeight: 800,
-                                color: C.text,
-                                letterSpacing: '-.3px',
                                 lineHeight: 1.4,
+                                color: theme.palette.text.primary || C.text,
                             }}
                         >
-                            {currentMenu?.label || 'MD Mapping'}
+                            {currentPage}
                         </Typography>
 
                         <Typography
-                            noWrap
                             sx={{
                                 display: { xs: 'none', sm: 'block' },
-                                color: C.muted,
-                                fontSize: 11.5,
-                                mt: 0.25,
+                                fontSize: 11,
+                                color: theme.palette.text.secondary || C.muted,
                             }}
                         >
-                            {currentMenu?.description ||
-                                'Kelola sebaran dan aktivitas outlet'}
+                            MD Mapping System
                         </Typography>
                     </Box>
 
                     <Chip
                         icon={
-                            <StorefrontIcon
-                                sx={{ fontSize: '17px !important' }}
+                            <Box
+                                component="span"
+                                sx={{
+                                    display: 'inline-block',
+                                    width: 7,
+                                    height: 7,
+                                    borderRadius: '50%',
+                                    bgcolor: '#22C55E',
+                                    ml: 1,
+                                }}
                             />
                         }
-                        label={`${outlets.length.toLocaleString('id-ID')} Outlet`}
+                        label="Online"
                         size="small"
                         sx={{
-                            height: 32,
-                            flexShrink: 0,
-                            maxWidth: { xs: 132, sm: 'none' },
-                            bgcolor: '#F0FDFA',
-                            color: '#0F766E',
-                            border: '1px solid #CCFBF1',
-                            fontSize: 10.5,
-                            fontWeight: 800,
+                            bgcolor: '#F0FDF4',
+                            color: '#15803D',
+                            fontSize: 11,
+                            fontWeight: 700,
+                            border: '1px solid #DCFCE7',
                             '& .MuiChip-icon': {
-                                color: C.teal,
-                                ml: 0.8,
-                            },
-                            '& .MuiChip-label': {
-                                px: 1,
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
+                                mr: -0.5,
                             },
                         }}
                     />
                 </Toolbar>
             </AppBar>
 
-            {/* SIDEBAR */}
-            <Drawer
-                variant={isMobile ? 'temporary' : 'permanent'}
-                open={isMobile ? drawerOpen : true}
-                onClose={() => setDrawerOpen(false)}
-                ModalProps={{ keepMounted: true }}
+            {/* Sidebar desktop */}
+            <Box
+                component="nav"
                 sx={{
-                    width: isMobile ? MOBILE_DRAWER_WIDTH : DRAWER_WIDTH,
-                    flexShrink: 0,
-                    '& .MuiDrawer-paper': {
-                        width: isMobile ? MOBILE_DRAWER_WIDTH : DRAWER_WIDTH,
-                        maxWidth: '86vw',
-                        boxSizing: 'border-box',
-                        bgcolor: C.navy,
-                        border: 0,
-                        overflowX: 'hidden',
-                    },
+                    width: { md: drawerWidth },
+                    flexShrink: { md: 0 },
                 }}
+                aria-label="Navigasi utama"
             >
-                {drawerContent}
-            </Drawer>
+                <Drawer
+                    variant="temporary"
+                    open={mobileOpen}
+                    onClose={handleDrawerToggle}
+                    ModalProps={{
+                        keepMounted: true,
+                    }}
+                    sx={{
+                        display: { xs: 'block', md: 'none' },
+                        '& .MuiDrawer-paper': {
+                            width: MOBILE_DRAWER_WIDTH,
+                            boxSizing: 'border-box',
+                            border: 0,
+                        },
+                    }}
+                >
+                    {sidebarContent}
+                </Drawer>
 
-            {/* PAGE CONTENT */}
+                <Drawer
+                    variant="permanent"
+                    open
+                    sx={{
+                        display: { xs: 'none', md: 'block' },
+                        width: drawerWidth,
+                        flexShrink: 0,
+                        '& .MuiDrawer-paper': {
+                            width: drawerWidth,
+                            boxSizing: 'border-box',
+                            border: 0,
+                            overflowX: 'hidden',
+                            transition: theme.transitions.create('width', {
+                                duration:
+                                    theme.transitions.duration.shorter,
+                            }),
+                        },
+                    }}
+                >
+                    {sidebarContent}
+                </Drawer>
+            </Box>
+
+            {/* Konten halaman */}
             <Box
                 component="main"
                 sx={{
-                    flex: '1 1 0%',
-                    width: 0,
+                    flexGrow: 1,
                     minWidth: 0,
                     minHeight: '100vh',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    pt: '68px',
+                    bgcolor: theme.palette.background.default || C.background,
+                    transition: theme.transitions.create(
+                        ['width', 'margin'],
+                        {
+                            duration: theme.transitions.duration.shorter,
+                        }
+                    ),
                 }}
             >
+                <Toolbar
+                    sx={{
+                        minHeight: { xs: 60, md: 68 },
+                    }}
+                />
+
                 <Box
                     sx={{
                         width: '100%',
                         maxWidth: 1800,
                         mx: 'auto',
-                        px: { xs: 1.5, sm: 3, lg: 4 },
-                        py: { xs: 2, sm: 3, lg: 3.5 },
-                        flex: 1,
-                        minWidth: 0,
+                        p: {
+                            xs: 2,
+                            sm: 2.5,
+                            md: 3,
+                            lg: 3.5,
+                        },
                     }}
                 >
-                    {children}
+                    {children || <Outlet />}
                 </Box>
 
-                {/* FOOTER */}
+                {/* Footer */}
                 <Box
                     component="footer"
                     sx={{
-                        px: { xs: 1.75, sm: 3, lg: 4 },
+                        mt: 'auto',
+                        px: { xs: 2, md: 3 },
                         py: 2,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        flexWrap: 'wrap',
-                        gap: 1,
-                        borderTop: `1px solid ${C.border}`,
-                        bgcolor: '#FFFFFF',
+                        borderTop: `1px solid ${
+                            theme.palette.divider || C.border
+                        }`,
+                        bgcolor: theme.palette.background.paper || C.white,
                     }}
                 >
-                    <Typography sx={{ color: '#8491A5', fontSize: 10.5 }}>
-                        © {new Date().getFullYear()} MD Mapping
-                        {' · '}Marketing Distribution
-                    </Typography>
-
-                    <Typography sx={{ color: '#8491A5', fontSize: 10.5 }}>
-                        Outlet Management System v1.0
+                    <Typography
+                        sx={{
+                            fontSize: 11,
+                            textAlign: 'center',
+                            color: theme.palette.text.secondary || C.muted,
+                        }}
+                    >
+                        © {new Date().getFullYear()} MD Mapping System
                     </Typography>
                 </Box>
             </Box>
         </Box>
     );
-};
-
-export default Layout;
+                    }
