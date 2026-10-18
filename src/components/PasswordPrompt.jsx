@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom'; // ✅ TAMBAHKAN IMPORT INI
 import {
     Dialog, DialogTitle, DialogContent, DialogActions,
     Button, TextField, Alert, Box, Typography,
@@ -6,6 +7,7 @@ import {
 import { Lock as LockIcon, Visibility, VisibilityOff } from '@mui/icons-material';
 
 const PasswordPrompt = ({ open, pageLabel, onVerify, onClose }) => {
+    const navigate = useNavigate(); // ✅ INISIALISASI NAVIGATE
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
@@ -35,6 +37,11 @@ const PasswordPrompt = ({ open, pageLabel, onVerify, onClose }) => {
 
     const handleKeyDown = (e) => {
         if (e.key === 'Enter') handleSubmit();
+    };
+
+    // ✅ FUNGSI BARU: Arahkan ke halaman Home saat dibatalkan
+    const handleCancel = () => {
+        navigate('/'); 
     };
 
     return (
@@ -75,7 +82,10 @@ const PasswordPrompt = ({ open, pageLabel, onVerify, onClose }) => {
                 />
             </DialogContent>
             <DialogActions sx={{ p: 2 }}>
-                <Button onClick={onClose} variant="outlined">Batal</Button>
+                {/* ✅ GUNAKAN handleCancel DI SINI */}
+                <Button onClick={handleCancel} variant="outlined">
+                    Batal & Kembali ke Home
+                </Button>
                 <Button onClick={handleSubmit} variant="contained" disabled={busy}>
                     {busy ? 'Memverifikasi...' : 'Buka'}
                 </Button>
