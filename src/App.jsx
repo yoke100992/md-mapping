@@ -29,7 +29,7 @@ function App() {
                         <Routes>
                             <Route path="/" element={<DashboardPage />} />
                             <Route path="/manage" element={<ManageOutletsPage />} />
-                            
+                            <Route path="/map" element={<MapPage />} />  
 
                             <Route path="/template" element={<TemplatePage />} />
                             <Route path="*" element={<Navigate to="/" replace />} />
