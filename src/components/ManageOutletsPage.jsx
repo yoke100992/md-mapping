@@ -52,7 +52,6 @@ import {
 import { useData } from '../context/DataContext';
 import { getFrontlinerColor } from '../utils/constants';
 
-// Pilihan khusus untuk edit RTG / Freezer di halaman Kelola Outlet
 const MANAGE_RTG_LABELS = [
   'RTG',
   'Freezer',
@@ -75,9 +74,12 @@ const ManageOutletsPage = () => {
     removeOutlet,
   } = useData();
 
+  // =====================================================
   // FILTER MULTI SELECT
+  // =====================================================
   const [filterAccount, setFilterAccount] = useState([]);
   const [filterFrontliner, setFilterFrontliner] = useState([]);
+  const [filterRTG, setFilterRTG] = useState([]);
 
   // SEARCH
   const [searchQuery, setSearchQuery] = useState('');
@@ -94,9 +96,9 @@ const ManageOutletsPage = () => {
   // PAGINATION
   const [displayCount, setDisplayCount] = useState(BATCH_SIZE);
 
-  /* =====================================================
-     DEBOUNCE SEARCH
-  ===================================================== */
+  // =====================================================
+  // DEBOUNCE SEARCH
+  // =====================================================
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery.trim());
@@ -106,9 +108,9 @@ const ManageOutletsPage = () => {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  /* =====================================================
-     DATA AMAN
-  ===================================================== */
+  // =====================================================
+  // DATA AMAN
+  // =====================================================
   const safeOutlets = useMemo(
     () =>
       (Array.isArray(outlets) ? outlets : []).filter(Boolean),
@@ -123,9 +125,9 @@ const ManageOutletsPage = () => {
     [frontliners]
   );
 
-  /* =====================================================
-     DAFTAR ACCOUNT UNIK
-  ===================================================== */
+  // =====================================================
+  // ACCOUNT UNIK
+  // =====================================================
   const uniqueAccounts = useMemo(
     () =>
       [
@@ -140,27 +142,45 @@ const ManageOutletsPage = () => {
     [safeOutlets]
   );
 
-  /* =====================================================
-     STATUS FILTER
-  ===================================================== */
+  // =====================================================
+  // RTG / FREEZER UNIK
+  // Mengikuti nilai yang tersedia di database
+  // =====================================================
+  const uniqueRTG = useMemo(
+    () =>
+      [
+        ...new Set(
+          safeOutlets
+            .map((outlet) =>
+              String(outlet.rtgFreezer || '').trim()
+            )
+            .filter(Boolean)
+        ),
+      ].sort((a, b) => a.localeCompare(b)),
+    [safeOutlets]
+  );
+
+  // =====================================================
+  // STATUS FILTER AKTIF
+  // =====================================================
   const hasActiveFilters =
     filterAccount.length > 0 ||
     filterFrontliner.length > 0 ||
+    filterRTG.length > 0 ||
     Boolean(debouncedSearch.trim());
 
-  /* =====================================================
-     FILTER DATA
-     Account: OR
-     Frontliner: OR
-     Antar-filter: AND
-  ===================================================== */
+  // =====================================================
+  // FILTER DATA
+  // OR di dalam kategori yang sama
+  // AND antar-kategori
+  // =====================================================
   const filteredOutlets = useMemo(() => {
     if (!hasActiveFilters) return [];
 
     const query = debouncedSearch.toLowerCase();
 
     return safeOutlets.filter((outlet) => {
-      // Filter Account multi-select
+      // FILTER ACCOUNT
       if (
         filterAccount.length > 0 &&
         !filterAccount.includes(
@@ -170,7 +190,7 @@ const ManageOutletsPage = () => {
         return false;
       }
 
-      // Filter Frontliner multi-select
+      // FILTER MD / FRONTLINER
       if (
         filterFrontliner.length > 0 &&
         !filterFrontliner.includes(
@@ -180,7 +200,17 @@ const ManageOutletsPage = () => {
         return false;
       }
 
-      // Search nama outlet dan ID outlet
+      // FILTER RTG / FREEZER
+      if (
+        filterRTG.length > 0 &&
+        !filterRTG.includes(
+          String(outlet.rtgFreezer || '').trim()
+        )
+      ) {
+        return false;
+      }
+
+      // PENCARIAN NAMA OUTLET / ID
       if (query) {
         const outletName = String(
           outlet.outletName || ''
@@ -204,13 +234,14 @@ const ManageOutletsPage = () => {
     safeOutlets,
     filterAccount,
     filterFrontliner,
+    filterRTG,
     debouncedSearch,
     hasActiveFilters,
   ]);
 
-  /* =====================================================
-     DATA YANG DITAMPILKAN
-  ===================================================== */
+  // =====================================================
+  // PAGINATION
+  // =====================================================
   const displayedOutlets = useMemo(
     () => filteredOutlets.slice(0, displayCount),
     [filteredOutlets, displayCount]
@@ -219,9 +250,9 @@ const ManageOutletsPage = () => {
   const hasMore =
     displayCount < filteredOutlets.length;
 
-  /* =====================================================
-     ALERT
-  ===================================================== */
+  // =====================================================
+  // ALERT
+  // =====================================================
   const showAlert = (message, type = 'success') => {
     setAlert({ message, type });
 
@@ -230,9 +261,9 @@ const ManageOutletsPage = () => {
     }, 3000);
   };
 
-  /* =====================================================
-     EDIT DATA
-  ===================================================== */
+  // =====================================================
+  // EDIT DATA
+  // =====================================================
   const handleStartEdit = (outlet, field) => {
     setEditingCell({
       id: outlet.id,
@@ -274,9 +305,9 @@ const ManageOutletsPage = () => {
     setEditingCell(null);
   };
 
-  /* =====================================================
-     HAPUS OUTLET
-  ===================================================== */
+  // =====================================================
+  // HAPUS OUTLET
+  // =====================================================
   const handleConfirmDelete = async () => {
     if (!deleteDialog) return;
 
@@ -302,26 +333,26 @@ const ManageOutletsPage = () => {
     }
   };
 
-  /* =====================================================
-     RESET FILTER
-  ===================================================== */
+  // =====================================================
+  // RESET FILTER
+  // =====================================================
   const handleResetFilters = () => {
     setFilterAccount([]);
     setFilterFrontliner([]);
+    setFilterRTG([]);
     setSearchQuery('');
     setDebouncedSearch('');
     setDisplayCount(BATCH_SIZE);
   };
 
-  /* =====================================================
-     IKON RTG / FREEZER
-  ===================================================== */
+  // =====================================================
+  // IKON RTG / FREEZER
+  // =====================================================
   const getRTGIcon = (rtg) => {
     const value = String(rtg || '').toLowerCase();
 
     if (
-      value === 'freezer' ||
-      value === 'freezer toko' ||
+      value.includes('freezer') ||
       value === 'standing freezer'
     ) {
       return (
@@ -361,22 +392,15 @@ const ManageOutletsPage = () => {
   const getRTGColor = (rtg) => {
     const value = String(rtg || '').toLowerCase();
 
-    if (
-      value === 'freezer' ||
-      value === 'freezer toko' ||
-      value === 'standing freezer'
-    ) {
-      return 'info';
-    }
-
+    if (value.includes('freezer')) return 'info';
     if (value === 'rtg') return 'warning';
 
     return 'default';
   };
 
-  /* =====================================================
-     KOMPONEN KARTU OUTLET UNTUK MOBILE
-  ===================================================== */
+  // =====================================================
+  // KARTU OUTLET MOBILE
+  // =====================================================
   const OutletCard = ({ outlet }) => {
     const isEditingFrontliner =
       editingCell?.id === outlet.id &&
@@ -399,7 +423,7 @@ const ManageOutletsPage = () => {
         }}
       >
         <CardContent sx={{ p: 2 }}>
-          {/* FRONTLINER DAN TOMBOL HAPUS */}
+          {/* FRONTLINER DAN HAPUS */}
           <Box
             sx={{
               display: 'flex',
@@ -473,7 +497,7 @@ const ManageOutletsPage = () => {
                   bgcolor: getFrontlinerColor(
                     outlet.frontliner
                   ),
-                  color: 'white',
+                  color: '#fff',
                   fontWeight: 600,
                   cursor: 'pointer',
                   maxWidth: '80%',
@@ -511,24 +535,15 @@ const ManageOutletsPage = () => {
               mb: 1.5,
             }}
           >
-            <Typography
-              variant="body2"
-              color="text.secondary"
-            >
+            <Typography variant="body2" color="text.secondary">
               <b>ID:</b> {outlet.outletId || '-'}
             </Typography>
 
-            <Typography
-              variant="body2"
-              color="text.secondary"
-            >
+            <Typography variant="body2" color="text.secondary">
               <b>Account:</b> {outlet.account || '-'}
             </Typography>
 
-            <Typography
-              variant="body2"
-              color="text.secondary"
-            >
+            <Typography variant="body2" color="text.secondary">
               <b>Kecamatan:</b> {outlet.district || '-'}
             </Typography>
           </Box>
@@ -567,10 +582,7 @@ const ManageOutletsPage = () => {
                     autoFocus
                   >
                     {MANAGE_RTG_LABELS.map((label) => (
-                      <MenuItem
-                        key={label}
-                        value={label}
-                      >
+                      <MenuItem key={label} value={label}>
                         <Box
                           sx={{
                             display: 'flex',
@@ -612,9 +624,9 @@ const ManageOutletsPage = () => {
     );
   };
 
-  /* =====================================================
-     RENDER HALAMAN
-  ===================================================== */
+  // =====================================================
+  // RENDER HALAMAN
+  // =====================================================
   return (
     <Box sx={{ p: { xs: 1, md: 2 }, minWidth: 0 }}>
       <Typography
@@ -746,10 +758,7 @@ const ManageOutletsPage = () => {
               placeholder="Ketik nama atau ID outlet..."
               sx={{
                 flexGrow: 1,
-                minWidth: {
-                  xs: '100%',
-                  sm: 200,
-                },
+                minWidth: { xs: '100%', sm: 200 },
               }}
             />
 
@@ -757,10 +766,7 @@ const ManageOutletsPage = () => {
             <FormControl
               size="small"
               sx={{
-                minWidth: {
-                  xs: '100%',
-                  sm: 220,
-                },
+                minWidth: { xs: '100%', sm: 220 },
                 flex: 1,
               }}
             >
@@ -796,22 +802,15 @@ const ManageOutletsPage = () => {
                 )}
                 MenuProps={{
                   PaperProps: {
-                    sx: {
-                      maxHeight: 320,
-                    },
+                    sx: { maxHeight: 320 },
                   },
                 }}
               >
                 {uniqueAccounts.map((account) => (
-                  <MenuItem
-                    key={account}
-                    value={account}
-                  >
+                  <MenuItem key={account} value={account}>
                     <Checkbox
                       size="small"
-                      checked={filterAccount.includes(
-                        account
-                      )}
+                      checked={filterAccount.includes(account)}
                     />
                     {account}
                   </MenuItem>
@@ -819,14 +818,11 @@ const ManageOutletsPage = () => {
               </Select>
             </FormControl>
 
-            {/* MULTI SELECT FRONTLINER */}
+            {/* MULTI SELECT MD / FRONTLINER */}
             <FormControl
               size="small"
               sx={{
-                minWidth: {
-                  xs: '100%',
-                  sm: 240,
-                },
+                minWidth: { xs: '100%', sm: 240 },
                 flex: 1,
               }}
             >
@@ -868,9 +864,7 @@ const ManageOutletsPage = () => {
                 )}
                 MenuProps={{
                   PaperProps: {
-                    sx: {
-                      maxHeight: 320,
-                    },
+                    sx: { maxHeight: 320 },
                   },
                 }}
               >
@@ -897,9 +891,76 @@ const ManageOutletsPage = () => {
                 ))}
               </Select>
             </FormControl>
+
+            {/* MULTI SELECT RTG / FREEZER */}
+            <FormControl
+              size="small"
+              sx={{
+                minWidth: { xs: '100%', sm: 220 },
+                flex: 1,
+              }}
+            >
+              <InputLabel id="filter-rtg-label">
+                RTG / Freezer
+              </InputLabel>
+
+              <Select
+                labelId="filter-rtg-label"
+                multiple
+                value={filterRTG}
+                label="RTG / Freezer"
+                onChange={(event) => {
+                  setFilterRTG(event.target.value);
+                  setDisplayCount(BATCH_SIZE);
+                }}
+                renderValue={(selected) => (
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: 0.5,
+                    }}
+                  >
+                    {selected.map((rtg) => (
+                      <Chip
+                        key={rtg}
+                        label={rtg}
+                        size="small"
+                        icon={getRTGIcon(rtg)}
+                      />
+                    ))}
+                  </Box>
+                )}
+                MenuProps={{
+                  PaperProps: {
+                    sx: { maxHeight: 320 },
+                  },
+                }}
+              >
+                {uniqueRTG.map((rtg) => (
+                  <MenuItem key={rtg} value={rtg}>
+                    <Checkbox
+                      size="small"
+                      checked={filterRTG.includes(rtg)}
+                    />
+
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                      }}
+                    >
+                      {getRTGIcon(rtg)}
+                      {rtg}
+                    </Box>
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
           </Box>
 
-          {/* RINGKASAN FILTER */}
+          {/* RINGKASAN FILTER AKTIF */}
           {hasActiveFilters && (
             <Box
               sx={{
@@ -942,6 +1003,20 @@ const ManageOutletsPage = () => {
                   onDelete={() =>
                     setFilterFrontliner((prev) =>
                       prev.filter((item) => item !== fl)
+                    )
+                  }
+                />
+              ))}
+
+              {filterRTG.map((rtg) => (
+                <Chip
+                  key={`rtg-${rtg}`}
+                  size="small"
+                  label={rtg}
+                  icon={getRTGIcon(rtg)}
+                  onDelete={() =>
+                    setFilterRTG((prev) =>
+                      prev.filter((item) => item !== rtg)
                     )
                   }
                 />
@@ -1044,8 +1119,8 @@ const ManageOutletsPage = () => {
                 color="text.secondary"
               >
                 Pilih satu atau beberapa Account,
-                Frontliner, atau ketik nama outlet untuk
-                memuat data.
+                Frontliner, atau RTG / Freezer, atau ketik
+                nama outlet untuk memuat data.
                 <br />
                 Total data tersedia:{' '}
                 <b>{safeOutlets.length} outlet</b>
@@ -1077,12 +1152,7 @@ const ManageOutletsPage = () => {
             <>
               {/* PROGRESS PAGINATION */}
               {hasMore && (
-                <Box
-                  sx={{
-                    mb: 2,
-                    px: 1,
-                  }}
-                >
+                <Box sx={{ mb: 2, px: 1 }}>
                   <Typography
                     variant="caption"
                     color="text.secondary"
@@ -1163,7 +1233,7 @@ const ManageOutletsPage = () => {
                           <TableCell
                             key={label}
                             sx={{
-                              color: 'white',
+                              color: '#fff',
                               fontWeight: 700,
                               bgcolor: 'primary.main',
                               position: 'sticky',
@@ -1186,13 +1256,11 @@ const ManageOutletsPage = () => {
                         (outlet, index) => {
                           const isEditingFrontliner =
                             editingCell?.id === outlet.id &&
-                            editingCell?.field ===
-                              'frontliner';
+                            editingCell?.field === 'frontliner';
 
                           const isEditingRTG =
                             editingCell?.id === outlet.id &&
-                            editingCell?.field ===
-                              'rtgFreezer';
+                            editingCell?.field === 'rtgFreezer';
 
                           const flName = String(
                             outlet.frontliner || 'Belum Ada'
@@ -1239,8 +1307,7 @@ const ManageOutletsPage = () => {
                                               <Box
                                                 sx={{
                                                   display: 'flex',
-                                                  alignItems:
-                                                    'center',
+                                                  alignItems: 'center',
                                                   gap: 1,
                                                 }}
                                               >
@@ -1248,12 +1315,9 @@ const ManageOutletsPage = () => {
                                                   sx={{
                                                     width: 10,
                                                     height: 10,
-                                                    borderRadius:
-                                                      '50%',
+                                                    borderRadius: '50%',
                                                     bgcolor:
-                                                      getFrontlinerColor(
-                                                        fl
-                                                      ),
+                                                      getFrontlinerColor(fl),
                                                   }}
                                                 />
                                                 {fl}
@@ -1266,9 +1330,7 @@ const ManageOutletsPage = () => {
 
                                     <IconButton
                                       size="small"
-                                      onClick={
-                                        handleCancelEdit
-                                      }
+                                      onClick={handleCancelEdit}
                                       aria-label="Batal edit"
                                     >
                                       <CloseIcon fontSize="small" />
@@ -1286,7 +1348,7 @@ const ManageOutletsPage = () => {
                                         getFrontlinerColor(
                                           outlet.frontliner
                                         ),
-                                      color: 'white',
+                                      color: '#fff',
                                       fontWeight: 600,
                                       cursor: 'pointer',
                                     }}
@@ -1300,7 +1362,7 @@ const ManageOutletsPage = () => {
                                 )}
                               </TableCell>
 
-                              {/* ID */}
+                              {/* ID OUTLET */}
                               <TableCell
                                 sx={{ fontWeight: 500 }}
                               >
@@ -1368,14 +1430,11 @@ const ManageOutletsPage = () => {
                                               <Box
                                                 sx={{
                                                   display: 'flex',
-                                                  alignItems:
-                                                    'center',
+                                                  alignItems: 'center',
                                                   gap: 1,
                                                 }}
                                               >
-                                                {getRTGIcon(
-                                                  label
-                                                )}
+                                                {getRTGIcon(label)}
                                                 {label}
                                               </Box>
                                             </MenuItem>
@@ -1386,9 +1445,7 @@ const ManageOutletsPage = () => {
 
                                     <IconButton
                                       size="small"
-                                      onClick={
-                                        handleCancelEdit
-                                      }
+                                      onClick={handleCancelEdit}
                                       aria-label="Batal edit"
                                     >
                                       <CloseIcon fontSize="small" />
@@ -1400,8 +1457,7 @@ const ManageOutletsPage = () => {
                                       outlet.rtgFreezer
                                     )}
                                     label={
-                                      outlet.rtgFreezer ||
-                                      'None'
+                                      outlet.rtgFreezer || 'None'
                                     }
                                     size="small"
                                     color={getRTGColor(
@@ -1444,12 +1500,7 @@ const ManageOutletsPage = () => {
 
               {/* LOAD MORE */}
               {hasMore && (
-                <Box
-                  sx={{
-                    textAlign: 'center',
-                    mt: 2,
-                  }}
-                >
+                <Box sx={{ textAlign: 'center', mt: 2 }}>
                   <Button
                     variant="contained"
                     color="primary"
@@ -1508,7 +1559,7 @@ const ManageOutletsPage = () => {
         <DialogTitle
           sx={{
             bgcolor: 'error.main',
-            color: 'white',
+            color: '#fff',
             display: 'flex',
             alignItems: 'center',
             gap: 1,
