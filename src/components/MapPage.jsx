@@ -39,6 +39,7 @@ import {
     Edit as EditIcon,
     FilterList as FilterIcon,
     LocationOn as LocationIcon,
+    MyLocation,
     Palette as PaletteIcon,
     Whatshot,
 } from '@mui/icons-material';
@@ -47,6 +48,9 @@ import {
     MapContainer,
     TileLayer,
     useMap,
+    Circle,
+    CircleMarker,
+    Popup,
 } from 'react-leaflet';
 
 import L from 'leaflet';
@@ -100,8 +104,10 @@ const makePinIcon = (color) =>
         iconAnchor: [11, 22],
     });
 
-// Marker layer tanpa cluster.
-// Marker ditambahkan bertahap agar browser tetap responsif.
+/* =========================================================
+   MARKER OUTLET
+   Marker dibuat bertahap untuk membantu performa peta.
+========================================================= */
 const OutletMarkerLayer = memo(function OutletMarkerLayer({
     outlets,
     customColors,
@@ -191,6 +197,9 @@ const OutletMarkerLayer = memo(function OutletMarkerLayer({
     return null;
 });
 
+/* =========================================================
+   PUSAT PETA SAAT OUTLET DIPILIH
+========================================================= */
 function MapFocusController({ selectedOutlet }) {
     const map = useMap();
 
@@ -214,10 +223,81 @@ function MapFocusController({ selectedOutlet }) {
     return null;
 }
 
+/* =========================================================
+   MARKER GPS LOKASI SAYA
+========================================================= */
+function GpsLocationMarker({ position, accuracy }) {
+    const map = useMap();
+
+    useEffect(() => {
+        if (!position) return;
+
+        map.flyTo(
+            [position.latitude, position.longitude],
+            Math.max(map.getZoom(), 15),
+            {
+                animate: true,
+                duration: 0.8,
+            }
+        );
+    }, [map, position]);
+
+    if (!position) return null;
+
+    return (
+        <>
+            {Number.isFinite(accuracy) && accuracy > 0 && (
+                <Circle
+                    center={[
+                        position.latitude,
+                        position.longitude,
+                    ]}
+                    radius={accuracy}
+                    pathOptions={{
+                        color: '#1976d2',
+                        fillColor: '#1976d2',
+                        fillOpacity: 0.10,
+                        weight: 1,
+                    }}
+                />
+            )}
+
+            <CircleMarker
+                center={[
+                    position.latitude,
+                    position.longitude,
+                ]}
+                radius={9}
+                pathOptions={{
+                    color: '#ffffff',
+                    weight: 3,
+                    fillColor: '#1976d2',
+                    fillOpacity: 1,
+                }}
+            >
+                <Popup>
+                    <b>Lokasi Saya</b>
+                    <br />
+                    GPS aktif
+                    <br />
+                    Akurasi sekitar{' '}
+                    {Math.round(accuracy || 0)} meter
+                    <br />
+                    <small>
+                        Akurasi bergantung pada sinyal GPS perangkat.
+                    </small>
+                </Popup>
+            </CircleMarker>
+        </>
+    );
+}
+
+/* =========================================================
+   HALAMAN VIEW MAP
+========================================================= */
 function MapPage() {
     const theme = useTheme();
 
-    // Di bawah breakpoint md, panel edit menggunakan dialog pop-up.
     const isMobile = useMediaQuery(
         theme.breakpoints.down('md')
     );
@@ -236,18 +316,31 @@ function MapPage() {
     const [mapReady, setMapReady] = useState(false);
     const [frontlinerOutlets, setFrontlinerOutlets] = useState([]);
     const [loadingMap, setLoadingMap] = useState(false);
+
     const [filterAccount, setFilterAccount] = useState([]);
     const [filterRTG, setFilterRTG] = useState([]);
+
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
+
     const [selectedOutlet, setSelectedOutlet] = useState(null);
     const [editDialog, setEditDialog] = useState(null);
     const [editForm, setEditForm] = useState({});
+
     const [colorDialog, setColorDialog] = useState(false);
     const [selectedColorName, setSelectedColorName] = useState('');
+
     const [saveError, setSaveError] = useState('');
 
-    // Debounce pencarian.
+    // State GPS
+    const [gpsPosition, setGpsPosition] = useState(null);
+    const [gpsAccuracy, setGpsAccuracy] = useState(null);
+    const [gpsLoading, setGpsLoading] = useState(false);
+    const [gpsError, setGpsError] = useState('');
+
+    /* =====================================================
+       DEBOUNCE PENCARIAN
+    ===================================================== */
     useEffect(() => {
         const timer = window.setTimeout(() => {
             setDebouncedSearch(
@@ -258,6 +351,9 @@ function MapPage() {
         return () => window.clearTimeout(timer);
     }, [searchQuery]);
 
+    /* =====================================================
+       DATA DASAR
+    ===================================================== */
     const safeOutlets = useMemo(
         () =>
             (Array.isArray(outlets) ? outlets : []).filter(
@@ -274,7 +370,6 @@ function MapPage() {
         [frontliners]
     );
 
-    // Hanya outlet dari Frontliner yang dipilih yang dimuat.
     const mapOutlets = useMemo(
         () =>
             (
@@ -291,9 +386,7 @@ function MapPage() {
                 ...new Set(
                     mapOutlets
                         .map((outlet) =>
-                            String(
-                                outlet.account ?? ''
-                            ).trim()
+                            String(outlet.account ?? '').trim()
                         )
                         .filter(Boolean)
                 ),
@@ -301,6 +394,9 @@ function MapPage() {
         [mapOutlets]
     );
 
+    /* =====================================================
+       FILTER OUTLET
+    ===================================================== */
     const filteredOutlets = useMemo(() => {
         return mapOutlets.filter((outlet) => {
             if (
@@ -382,7 +478,9 @@ function MapPage() {
         return counts;
     }, [filteredOutlets]);
 
-    // Pusat peta berdasarkan outlet yang dimuat.
+    /* =====================================================
+       PUSAT PETA
+    ===================================================== */
     const initialCenter = useMemo(() => {
         const valid = mapOutlets
             .filter(isValidCoordinate)
@@ -412,6 +510,9 @@ function MapPage() {
         [customColors]
     );
 
+    /* =====================================================
+       PILIH MARKER OUTLET
+    ===================================================== */
     const handleMarkerSelect = useCallback((outlet) => {
         setSelectedOutlet(outlet);
 
@@ -425,8 +526,67 @@ function MapPage() {
         setSaveError('');
     }, []);
 
+    /* =====================================================
+       DETEKSI GPS
+    ===================================================== */
+    const handleLocateMe = useCallback(() => {
+        if (!navigator.geolocation) {
+            setGpsError(
+                'Browser atau perangkat ini tidak mendukung GPS.'
+            );
+            return;
+        }
+
+        setGpsLoading(true);
+        setGpsError('');
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                setGpsPosition({
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude,
+                });
+
+                setGpsAccuracy(position.coords.accuracy);
+
+                // Tutup detail outlet jika sedang terbuka.
+                setSelectedOutlet(null);
+
+                // Peta dapat ditampilkan walaupun filter outlet
+                // belum dipilih.
+                setMapReady(true);
+                setGpsLoading(false);
+            },
+            (error) => {
+                let message =
+                    'Gagal mendeteksi lokasi. Silakan coba lagi.';
+
+                if (error.code === 1) {
+                    message =
+                        'Izin lokasi ditolak. Aktifkan izin lokasi browser di pengaturan HP.';
+                } else if (error.code === 2) {
+                    message =
+                        'Lokasi GPS belum tersedia. Aktifkan lokasi HP dan coba lagi.';
+                } else if (error.code === 3) {
+                    message =
+                        'Deteksi GPS terlalu lama. Coba lagi di area dengan sinyal lebih baik.';
+                }
+
+                setGpsError(message);
+                setGpsLoading(false);
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 20000,
+                maximumAge: 5000,
+            }
+        );
+    }, []);
+
+    /* =====================================================
+       RESET FILTER
+    ===================================================== */
     const resetFilters = () => {
-        // Frontliner tetap dipilih agar tidak memuat semua outlet.
         setFilterAccount([]);
         setFilterRTG([]);
         setSearchQuery('');
@@ -434,9 +594,12 @@ function MapPage() {
         setSelectedOutlet(null);
     };
 
-    // Memuat outlet dari Frontliner yang dipilih.
+    /* =====================================================
+       MEMUAT OUTLET BERDASARKAN FRONTLINER
+    ===================================================== */
     const handleFrontlinerFilterChange = async (event) => {
         const selected = event.target.value;
+
         const names = Array.isArray(selected)
             ? selected
             : [selected];
@@ -449,7 +612,7 @@ function MapPage() {
 
         if (!names.length) {
             setFrontlinerOutlets([]);
-            setMapReady(false);
+            setMapReady(Boolean(gpsPosition));
             return;
         }
 
@@ -477,7 +640,6 @@ function MapPage() {
 
                 results = chunks.flat();
             } else {
-                // Fallback jika context belum menyediakan query.
                 results = safeOutlets.filter((outlet) =>
                     names.includes(outlet.frontliner)
                 );
@@ -507,13 +669,12 @@ function MapPage() {
             setMapReady(true);
         } catch (error) {
             console.error(
-                'Gagal memuat outlet berdasarkan filter frontliner:',
+                'Gagal memuat outlet berdasarkan Frontliner:',
                 error
             );
 
             setSaveError(
-                'Gagal memuat outlet berdasarkan filter. ' +
-                    'Periksa koneksi Firebase dan indeks frontliner, lalu coba lagi.'
+                'Gagal memuat outlet. Periksa koneksi Firebase lalu coba lagi.'
             );
         } finally {
             setLoadingMap(false);
@@ -526,6 +687,9 @@ function MapPage() {
         filterRTG.length > 0 ||
         Boolean(searchQuery.trim());
 
+    /* =====================================================
+       IKON RTG / FREEZER
+    ===================================================== */
     const getRTGIcon = (rtg) => {
         if (rtg === 'Freezer') {
             return (
@@ -557,6 +721,9 @@ function MapPage() {
         return null;
     };
 
+    /* =====================================================
+       EDIT OUTLET
+    ===================================================== */
     const handleEdit = (outlet) => {
         setSaveError('');
 
@@ -607,7 +774,7 @@ function MapPage() {
 
         if (id == null) {
             setSaveError(
-                'ID outlet tidak ditemukan, sehingga perubahan tidak dapat disimpan.'
+                'ID outlet tidak ditemukan sehingga perubahan tidak dapat disimpan.'
             );
             return;
         }
@@ -653,6 +820,9 @@ function MapPage() {
         }
     };
 
+    /* =====================================================
+       WARNA FRONTLINER
+    ===================================================== */
     const handleSaveColor = async (color) => {
         try {
             await updateCustomColor(
@@ -661,15 +831,14 @@ function MapPage() {
             );
 
             setColorDialog(false);
+            setSaveError('');
         } catch (error) {
             console.error(
                 'Gagal menyimpan warna:',
                 error
             );
 
-            setSaveError(
-                'Gagal menyimpan warna frontliner.'
-            );
+            setSaveError('Gagal menyimpan warna Frontliner.');
         }
     };
 
@@ -681,18 +850,20 @@ function MapPage() {
             );
 
             setColorDialog(false);
+            setSaveError('');
         } catch (error) {
             console.error(
                 'Gagal mereset warna:',
                 error
             );
 
-            setSaveError(
-                'Gagal mereset warna frontliner.'
-            );
+            setSaveError('Gagal mereset warna Frontliner.');
         }
     };
 
+    /* =====================================================
+       HAPUS OUTLET
+    ===================================================== */
     const handleDelete = async () => {
         if (!selectedOutlet) return;
 
@@ -719,6 +890,7 @@ function MapPage() {
 
             setSelectedOutlet(null);
             setEditDialog(null);
+            setSaveError('');
         } catch (error) {
             console.error(
                 'Gagal menghapus outlet:',
@@ -731,6 +903,9 @@ function MapPage() {
         }
     };
 
+    /* =====================================================
+       RENDER
+    ===================================================== */
     return (
         <Box sx={{ width: '100%', minWidth: 0 }}>
             <Typography
@@ -743,14 +918,30 @@ function MapPage() {
 
             {!mapReady && (
                 <Alert severity="info" sx={{ mb: 2 }}>
-                    Pilih satu atau beberapa frontliner pada filter
-                    di bawah. Peta akan memuat outlet sesuai pilihan.
+                    Pilih Frontliner untuk menampilkan outlet,
+                    atau tekan Lokasi Saya untuk mendeteksi GPS.
                 </Alert>
             )}
 
             {loadingMap && (
                 <Alert severity="info" sx={{ mb: 2 }}>
-                    Sedang memuat outlet frontliner...
+                    Sedang memuat outlet Frontliner...
+                </Alert>
+            )}
+
+            {gpsLoading && (
+                <Alert severity="info" sx={{ mb: 2 }}>
+                    Sedang mendeteksi lokasi GPS...
+                </Alert>
+            )}
+
+            {gpsError && (
+                <Alert
+                    severity="warning"
+                    sx={{ mb: 2 }}
+                    onClose={() => setGpsError('')}
+                >
+                    {gpsError}
                 </Alert>
             )}
 
@@ -859,16 +1050,14 @@ function MapPage() {
                                                         size="small"
                                                         sx={{
                                                             bgcolor:
-                                                                getColor(
-                                                                    value
-                                                                ),
+                                                                getColor(value),
                                                             color: '#fff',
                                                         }}
                                                     />
                                                 ))}
                                             </Box>
                                         ) : (
-                                            'Semua'
+                                            'Pilih Frontliner'
                                         )
                                     }
                                 >
@@ -923,7 +1112,7 @@ function MapPage() {
                                                 ))}
                                             </Box>
                                         ) : (
-                                            'Semua'
+                                            'Semua Account'
                                         )
                                     }
                                 >
@@ -978,7 +1167,7 @@ function MapPage() {
                                                 ))}
                                             </Box>
                                         ) : (
-                                            'Semua'
+                                            'Semua RTG / Freezer'
                                         )
                                     }
                                 >
@@ -1079,7 +1268,7 @@ function MapPage() {
                         </Grid>
                     </Grid>
 
-                    {/* LEGENDA WARNA FRONTLINER */}
+                    {/* LEGENDA FRONTLINER */}
                     <Box
                         sx={{
                             mt: 2,
@@ -1132,7 +1321,7 @@ function MapPage() {
                 </CardContent>
             </Card>
 
-            {/* PETA DAN PANEL DESKTOP */}
+            {/* PETA */}
             <Grid container spacing={2} alignItems="stretch">
                 <Grid
                     size={{
@@ -1148,6 +1337,7 @@ function MapPage() {
                     >
                         <Box
                             sx={{
+                                position: 'relative',
                                 height: {
                                     xs: '60vh',
                                     md: '75vh',
@@ -1161,10 +1351,44 @@ function MapPage() {
                                 },
                             }}
                         >
-                            {mapReady && validOutlets.length ? (
+                            {/* TOMBOL GPS */}
+                            <Button
+                                variant="contained"
+                                onClick={handleLocateMe}
+                                disabled={gpsLoading}
+                                startIcon={<MyLocation />}
+                                sx={{
+                                    position: 'absolute',
+                                    top: 12,
+                                    right: 12,
+                                    zIndex: 1000,
+                                    minWidth: 0,
+                                    bgcolor: '#fff',
+                                    color: '#1976d2',
+                                    boxShadow: 3,
+                                    '&:hover': {
+                                        bgcolor: '#f2f7ff',
+                                    },
+                                }}
+                            >
+                                {gpsLoading
+                                    ? 'Mendeteksi...'
+                                    : 'Lokasi Saya'}
+                            </Button>
+
+                            {(mapReady &&
+                                validOutlets.length > 0) ||
+                            gpsPosition ? (
                                 <MapContainer
-                                    center={initialCenter}
-                                    zoom={12}
+                                    center={
+                                        gpsPosition
+                                            ? [
+                                                  gpsPosition.latitude,
+                                                  gpsPosition.longitude,
+                                              ]
+                                            : initialCenter
+                                    }
+                                    zoom={gpsPosition ? 15 : 12}
                                     style={{
                                         height: '100%',
                                         width: '100%',
@@ -1191,6 +1415,11 @@ function MapPage() {
 
                                     <MapFocusController
                                         selectedOutlet={selectedOutlet}
+                                    />
+
+                                    <GpsLocationMarker
+                                        position={gpsPosition}
+                                        accuracy={gpsAccuracy}
                                     />
                                 </MapContainer>
                             ) : (
@@ -1219,27 +1448,27 @@ function MapPage() {
                                         variant="h6"
                                         color="text.secondary"
                                     >
-                                        Tidak ada outlet dengan koordinat valid
+                                        Peta belum ditampilkan
                                     </Typography>
 
-                                    {!filterFrontliner.length ? (
-                                        <Typography
-                                            variant="body2"
-                                            color="text.secondary"
+                                    <Typography
+                                        variant="body2"
+                                        color="text.secondary"
+                                        sx={{ mt: 1 }}
+                                    >
+                                        Pilih Frontliner atau tekan
+                                        tombol Lokasi Saya untuk
+                                        menampilkan peta.
+                                    </Typography>
+
+                                    {hasActiveFilters && (
+                                        <Button
+                                            variant="outlined"
+                                            onClick={resetFilters}
+                                            sx={{ mt: 2 }}
                                         >
-                                            Pilih frontliner pada filter
-                                            di atas untuk memuat peta.
-                                        </Typography>
-                                    ) : (
-                                        hasActiveFilters && (
-                                            <Button
-                                                variant="outlined"
-                                                onClick={resetFilters}
-                                                sx={{ mt: 2 }}
-                                            >
-                                                Reset Filter
-                                            </Button>
-                                        )
+                                            Reset Filter
+                                        </Button>
                                     )}
                                 </Box>
                             )}
@@ -1247,7 +1476,7 @@ function MapPage() {
                     </Card>
                 </Grid>
 
-                {/* PANEL EDIT DESKTOP SAJA */}
+                {/* PANEL EDIT DESKTOP */}
                 {selectedOutlet && !isMobile && (
                     <Grid size={{ xs: 12, md: 4 }}>
                         <Card
@@ -1294,9 +1523,13 @@ function MapPage() {
                                 <Typography
                                     variant="body2"
                                     color="text.secondary"
-                                    sx={{ mb: 1 }}
+                                    sx={{
+                                        mb: 1,
+                                        overflowWrap: 'anywhere',
+                                    }}
                                 >
-                                    ID: {selectedOutlet.outletId || '-'} |
+                                    ID: {selectedOutlet.outletId || '-'}
+                                    {' | '}
                                     Account: {selectedOutlet.account || '-'}
                                 </Typography>
 
@@ -1802,7 +2035,7 @@ function MapPage() {
                         color="text.secondary"
                         sx={{ mb: 2 }}
                     >
-                        Pilih warna frontliner:
+                        Pilih warna Frontliner:
                     </Typography>
 
                     <Box
