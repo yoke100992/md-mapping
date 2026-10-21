@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
   Alert,
-  Autocomplete,
   Box,
   Button,
   Card,
@@ -35,16 +34,14 @@ import {
   CalendarMonth,
   CheckCircle,
   Close,
-  DeleteOutlined, // ✅ Diperbaiki dari DeleteOutline
+  DeleteOutlined,
   Edit,
-  Flag,
   GpsFixed,
   NearMe,
   Save,
   Search,
-  Store,
   WarningAmber,
-} from '@mui/icons-material'; // ✅ MapPin dihapus karena tidak ada di MUI dan tidak digunakan
+} from '@mui/icons-material';
 import { useData } from '../context/DataContext';
 
 const TARGET_OUTLETS = 13;
@@ -162,30 +159,46 @@ const VisitSchedulePage = () => {
     [safeSchedules, selectedDate, editingId]
   );
 
+  // ✅ IMPROVED: Rekomendasi outlet dengan filtering yang lebih baik
   const recommendedOutlets = useMemo(() => {
     const query = text(searchOutlet).toLowerCase();
     const lastOutlet = selectedOutlets[selectedOutlets.length - 1];
-    return safeOutlets
-      .filter((outlet) => {
-        const name = text(outlet.outletName).toLowerCase();
-        const id = text(outlet.outletId).toLowerCase();
-        const account = text(outlet.account).toLowerCase();
-        if (query && !name.includes(query) && !id.includes(query) && !account.includes(query)) {
-          return false;
-        }
-        return true;
-      })
-      .map((outlet) => ({
-        outlet,
-        distance: lastOutlet ? getDistanceKm(lastOutlet, outlet) : null,
-      }))
-      .sort((a, b) => {
-        if (a.distance != null && b.distance != null) return a.distance - b.distance;
-        if (a.distance != null) return -1;
-        if (b.distance != null) return 1;
-        return text(a.outlet.outletName).localeCompare(text(b.outlet.outletName));
-      });
-  }, [safeOutlets, searchOutlet, selectedOutlets]);
+    
+    // Filter outlet berdasarkan frontliner yang dipilih
+    let filtered = safeOutlets.filter((outlet) => {
+      // Filter by frontliner jika dipilih
+      if (selectedFrontliner && text(outlet.frontliner) !== selectedFrontliner) {
+        return false;
+      }
+      
+      // Filter by search query
+      const name = text(outlet.outletName).toLowerCase();
+      const id = text(outlet.outletId).toLowerCase();
+      const account = text(outlet.account).toLowerCase();
+      
+      if (query && !name.includes(query) && !id.includes(query) && !account.includes(query)) {
+        return false;
+      }
+      
+      return true;
+    });
+
+    // Hitung jarak dan urutkan
+    const withDistance = filtered.map((outlet) => ({
+      outlet,
+      distance: lastOutlet ? getDistanceKm(lastOutlet, outlet) : null,
+    }));
+
+    // Urutkan: yang punya jarak dulu (terdekat), lalu yang tanpa jarak (alfabetis)
+    return withDistance.sort((a, b) => {
+      if (a.distance != null && b.distance != null) {
+        return a.distance - b.distance;
+      }
+      if (a.distance != null) return -1;
+      if (b.distance != null) return 1;
+      return text(a.outlet.outletName).localeCompare(text(b.outlet.outletName));
+    });
+  }, [safeOutlets, searchOutlet, selectedOutlets, selectedFrontliner]);
 
   const filteredSchedules = useMemo(
     () =>
@@ -550,62 +563,67 @@ const VisitSchedulePage = () => {
               />
 
               <Stack spacing={1} sx={{ maxHeight: 400, overflowY: 'auto', pr: 0.5 }}>
-                {recommendedOutlets.slice(0, 100).map(({ outlet, distance }) => {
-                  const key = getOutletKey(outlet);
-                  const alreadyAdded = selectedKeys.has(key);
-                  const otherOwner = text(outlet.frontliner) && text(outlet.frontliner) !== selectedFrontliner;
-                  return (
-                    <Card
-                      key={key}
-                      variant="outlined"
-                      sx={{
-                        borderColor: alreadyAdded ? 'warning.main' : 'divider',
-                        opacity: alreadyAdded ? 0.65 : 1,
-                      }}
-                    >
-                      <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-                        <Stack
-                          direction={{ xs: 'column', sm: 'row' }}
-                          justifyContent="space-between"
-                          alignItems={{ xs: 'stretch', sm: 'center' }}
-                          spacing={1}
-                        >
-                          <Box sx={{ minWidth: 0, flex: 1 }}>
-                            <Typography fontWeight={700} sx={{ overflowWrap: 'anywhere' }}>
-                              {outlet.outletName || 'Tanpa Nama'}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              ID: {outlet.outletId || '-'} · {outlet.account || '-'}
-                            </Typography>
-                            <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 0.75 }}>
-                              <Chip size="small" icon={<GpsFixed />} label={formatDistance(distance)} />
-                              <Chip
-                                size="small"
-                                label={outlet.rtgFreezer || 'Tanpa RTG/Freezer'}
-                                color={isRTG(outlet) ? 'warning' : 'default'}
-                              />
-                              {otherOwner && (
-                                <Chip size="small" color="error" label={`MD: ${outlet.frontliner}`} />
-                              )}
-                              {alreadyAdded && <Chip size="small" label="Sudah dipilih" />}
-                            </Stack>
-                          </Box>
-                          <Button
-                            variant="contained"
-                            size="small"
-                            startIcon={<AddLocationAlt />}
-                            disabled={selectedOutlets.length >= TARGET_OUTLETS || alreadyAdded}
-                            onClick={() => handleChooseOutlet(outlet)}
+                {recommendedOutlets.length === 0 ? (
+                  <Alert severity="info">
+                    {searchOutlet 
+                      ? 'Tidak ada outlet yang cocok dengan pencarian.' 
+                      : 'Tidak ada outlet untuk frontliner ini.'}
+                  </Alert>
+                ) : (
+                  recommendedOutlets.slice(0, 100).map(({ outlet, distance }) => {
+                    const key = getOutletKey(outlet);
+                    const alreadyAdded = selectedKeys.has(key);
+                    const otherOwner = text(outlet.frontliner) && text(outlet.frontliner) !== selectedFrontliner;
+                    return (
+                      <Card
+                        key={key}
+                        variant="outlined"
+                        sx={{
+                          borderColor: alreadyAdded ? 'warning.main' : 'divider',
+                          opacity: alreadyAdded ? 0.65 : 1,
+                        }}
+                      >
+                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                          <Stack
+                            direction={{ xs: 'column', sm: 'row' }}
+                            justifyContent="space-between"
+                            alignItems={{ xs: 'stretch', sm: 'center' }}
+                            spacing={1}
                           >
-                            Tambahkan
-                          </Button>
-                        </Stack>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-                {recommendedOutlets.length === 0 && (
-                  <Alert severity="info">Outlet tidak ditemukan. Coba kata kunci lain.</Alert>
+                            <Box sx={{ minWidth: 0, flex: 1 }}>
+                              <Typography fontWeight={700} sx={{ overflowWrap: 'anywhere' }}>
+                                {outlet.outletName || 'Tanpa Nama'}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                ID: {outlet.outletId || '-'} · {outlet.account || '-'}
+                              </Typography>
+                              <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 0.75 }}>
+                                <Chip size="small" icon={<GpsFixed />} label={formatDistance(distance)} />
+                                <Chip
+                                  size="small"
+                                  label={outlet.rtgFreezer || 'Tanpa RTG/Freezer'}
+                                  color={isRTG(outlet) ? 'warning' : 'default'}
+                                />
+                                {otherOwner && (
+                                  <Chip size="small" color="error" label={`MD: ${outlet.frontliner}`} />
+                                )}
+                                {alreadyAdded && <Chip size="small" label="Sudah dipilih" />}
+                              </Stack>
+                            </Box>
+                            <Button
+                              variant="contained"
+                              size="small"
+                              startIcon={<AddLocationAlt />}
+                              disabled={selectedOutlets.length >= TARGET_OUTLETS || alreadyAdded}
+                              onClick={() => handleChooseOutlet(outlet)}
+                            >
+                              Tambahkan
+                            </Button>
+                          </Stack>
+                        </CardContent>
+                      </Card>
+                    );
+                  })
                 )}
               </Stack>
 
@@ -680,7 +698,7 @@ const VisitSchedulePage = () => {
                               onClick={() => removeSelectedOutlet(getOutletKey(outlet))}
                               aria-label="Hapus dari jadwal"
                             >
-                              <DeleteOutlined /> {/* ✅ Diperbaiki di sini */}
+                              <DeleteOutlined />
                             </IconButton>
                           </TableCell>
                         </TableRow>
@@ -737,8 +755,9 @@ const VisitSchedulePage = () => {
             <Chip label={`${filteredSchedules.length} jadwal`} />
           </Stack>
 
-          <Grid container spacing={1.5} sx={{ mb: 2 }}>
-            <Grid item xs={12} sm={6}>
+          {/* ✅ IMPROVED: Filter dengan layout yang lebih baik */}
+          <Grid container spacing={2} sx={{ mb: 2 }}>
+            <Grid item xs={12} sm={6} md={4}>
               <FormControl fullWidth size="small">
                 <InputLabel id="review-md-label">Filter Frontliner</InputLabel>
                 <Select
@@ -754,7 +773,7 @@ const VisitSchedulePage = () => {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sm={6} md={4}>
               <TextField
                 fullWidth
                 size="small"
@@ -765,6 +784,22 @@ const VisitSchedulePage = () => {
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
+            {(reviewFrontliner || reviewDate) && (
+              <Grid item xs={12} sm={12} md={4}>
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  size="small"
+                  onClick={() => {
+                    setReviewFrontliner('');
+                    setReviewDate('');
+                  }}
+                  sx={{ height: 40 }}
+                >
+                  Reset Filter
+                </Button>
+              </Grid>
+            )}
           </Grid>
 
           {filteredSchedules.length === 0 ? (
