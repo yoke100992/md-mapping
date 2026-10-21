@@ -12,8 +12,8 @@ export const DataProvider = ({ children }) => {
   const [outlets, setOutlets] = useState([]);
   const [deletedOutlets, setDeletedOutlets] = useState([]);
   const [customColors, setCustomColors] = useState({});
-
-  // ✅ BARU: State untuk Jadwal Kunjungan
+  
+  // ✅ State untuk Jadwal Kunjungan
   const [visitSchedules, setVisitSchedules] = useState([]);
 
   useEffect(() => {
@@ -39,7 +39,7 @@ export const DataProvider = ({ children }) => {
     return unsubscribe;
   }, []);
 
-  // ✅ BARU: Listener untuk Visit Schedules
+  // ✅ Listener untuk Visit Schedules
   useEffect(() => {
     const unsubscribe = onValue(ref(db, 'visitSchedules'), (snapshot) => {
       const data = snapshot.val() || {};
@@ -67,17 +67,6 @@ export const DataProvider = ({ children }) => {
     await update(ref(db, `outlets/${id}`), changes);
   }, []);
 
-  const updateOutlets = useCallback(async (ids, changes) => {
-    if (!Array.isArray(ids) || ids.length === 0) return;
-    const updates = {};
-    ids.filter((id) => id != null).forEach((id) => {
-      Object.entries(changes).forEach(([key, value]) => {
-        updates[`outlets/${id}/${key}`] = value;
-      });
-    });
-    if (Object.keys(updates).length) await update(ref(db), updates);
-  }, []);
-
   const removeOutlet = useCallback(async (id) => {
     if (id == null) throw new Error('ID outlet tidak ditemukan.');
     const snapshot = await get(ref(db, `outlets/${id}`));
@@ -90,39 +79,6 @@ export const DataProvider = ({ children }) => {
     }
   }, []);
 
-  const clearAll = useCallback(async () => {
-    const snapshot = await get(ref(db, 'outlets'));
-    const data = snapshot.val() || {};
-    const updates = {};
-    const deletedAt = new Date().toISOString();
-    Object.entries(data).forEach(([id, outlet]) => {
-      updates[`deletedOutlets/${id}`] = { ...outlet, id, deletedAt };
-      updates[`outlets/${id}`] = null;
-    });
-    if (Object.keys(updates).length) await update(ref(db), updates);
-  }, []);
-
-  const restoreOutlet = useCallback(async (id) => {
-    if (id == null) throw new Error('ID outlet tidak ditemukan.');
-    const snapshot = await get(ref(db, `deletedOutlets/${id}`));
-    if (!snapshot.exists()) throw new Error('Data outlet yang akan dipulihkan tidak ditemukan.');
-    const outlet = snapshot.val();
-    const { deletedAt, ...restoredOutlet } = outlet;
-    await update(ref(db), {
-      [`outlets/${id}`]: { ...restoredOutlet, id },
-      [`deletedOutlets/${id}`]: null,
-    });
-  }, []);
-
-  const permanentlyDeleteOutlet = useCallback(async (id) => {
-    if (id == null) throw new Error('ID outlet tidak ditemukan.');
-    await remove(ref(db, `deletedOutlets/${id}`));
-  }, []);
-
-  const clearDeletedOutlets = useCallback(async () => {
-    await remove(ref(db, 'deletedOutlets'));
-  }, []);
-
   const updateCustomColor = useCallback(async (frontliner, color) => {
     if (!frontliner) throw new Error('Nama frontliner tidak valid.');
     const colorRef = ref(db, `customColors/${frontliner}`);
@@ -130,18 +86,9 @@ export const DataProvider = ({ children }) => {
     else await set(colorRef, color);
   }, []);
 
-  const getOutletsByFrontliner = useCallback(async (frontliner) => {
-    if (!frontliner) return [];
-    const outletQuery = query(ref(db, 'outlets'), orderByChild('frontliner'), equalTo(frontliner));
-    const snapshot = await get(outletQuery);
-    const data = snapshot.val() || {};
-    return Object.entries(data).map(([key, value]) => ({ ...value, id: value?.id ?? key }));
-  }, []);
-
-  // ✅ BARU: Fungsi Simpan Jadwal Kunjungan
+  // ✅ Simpan Jadwal Kunjungan (Baru atau Update)
   const saveVisitSchedule = useCallback(async (scheduleData) => {
     const { id, date, frontliner, outlets: scheduleOutlets, status, totalOutlets, rtgCount } = scheduleData;
-
     const payload = {
       date,
       frontliner,
@@ -153,14 +100,18 @@ export const DataProvider = ({ children }) => {
     };
 
     if (id) {
-      // Update jadwal yang sudah ada
       await update(ref(db, `visitSchedules/${id}`), payload);
     } else {
-      // Buat jadwal baru dengan ID auto-generate
       payload.createdAt = new Date().toISOString();
       const newScheduleRef = push(ref(db, 'visitSchedules'));
       await set(newScheduleRef, { ...payload, id: newScheduleRef.key });
     }
+  }, []);
+
+  // ✅ Hapus Jadwal Kunjungan
+  const deleteVisitSchedule = useCallback(async (id) => {
+    if (!id) throw new Error('ID jadwal tidak ditemukan.');
+    await remove(ref(db, `visitSchedules/${id}`));
   }, []);
 
   const frontliners = useMemo(
@@ -177,20 +128,13 @@ export const DataProvider = ({ children }) => {
     visitSchedules,
     addOutlets,
     updateOutlet,
-    updateOutlets,
     removeOutlet,
-    clearAll,
-    restoreOutlet,
-    permanentlyDeleteOutlet,
-    clearDeletedOutlets,
     updateCustomColor,
-    getOutletsByFrontliner,
     saveVisitSchedule,
+    deleteVisitSchedule,
   }), [
     outlets, deletedOutlets, frontliners, customColors, visitSchedules,
-    addOutlets, updateOutlet, updateOutlets, removeOutlet, clearAll, restoreOutlet,
-    permanentlyDeleteOutlet, clearDeletedOutlets, updateCustomColor, getOutletsByFrontliner,
-    saveVisitSchedule,
+    addOutlets, updateOutlet, removeOutlet, updateCustomColor, saveVisitSchedule, deleteVisitSchedule,
   ]);
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
