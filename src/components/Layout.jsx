@@ -29,6 +29,7 @@ import {
     Close as CloseIcon,
     SettingsOutlined as SettingsIcon,
     ChevronRight as ChevronRightIcon,
+    CalendarMonth as CalendarIcon, // ✅ Icon baru untuk Jadwal Kunjungan
 } from '@mui/icons-material';
 
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -79,6 +80,13 @@ const menuItems = [
         description: 'Peta sebaran outlet',
         icon: <MapIcon />,
         path: '/map',
+    },
+    // ✅ MENU BARU: Jadwal Kunjungan
+    {
+        label: 'Jadwal Kunjungan',
+        description: 'Planning 13 outlet/hari',
+        icon: <CalendarIcon />,
+        path: '/visitschedule',
     },
     {
         label: 'Settings',
@@ -210,7 +218,7 @@ const Layout = ({ children }) => {
                 </Typography>
             </Box>
 
-            {/* NAVIGATION: SEMUA MENU ASLI DIPERTAHANKAN */}
+            {/* NAVIGATION */}
             <List
                 disablePadding
                 sx={{
