@@ -1,12 +1,15 @@
-
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
+// Providers
 import { DataProvider } from './context/DataContext';
 import { LockProvider } from './context/LockContext';
-import ProtectedRoute from './components/ProtectedRoute';
-import Layout from './components/Layout';
 
+// Layout & Protection
+import Layout from './components/Layout';
+import ProtectedRoute from './components/ProtectedRoute';
+
+// Pages
 import DashboardPage from './components/DashboardPage';
 import ManageOutletsPage from './components/ManageOutletsPage';
 import UploadPage from './components/UploadPage';
