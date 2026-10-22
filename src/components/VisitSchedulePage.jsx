@@ -49,6 +49,16 @@ const makeOutletSnapshot = (outlet) => ({
   longitude: outlet?.longitude ?? null,
 });
 
+// ✅ Komponen helper: Label di atas, input di bawah (tidak pernah terpotong)
+const FormField = ({ label, children, sx = {} }) => (
+  <Box sx={{ width: '100%', ...sx }}>
+    <Typography variant="caption" sx={{ mb: 0.5, display: 'block', fontWeight: 600, color: 'text.secondary', fontSize: '0.75rem' }}>
+      {label}
+    </Typography>
+    {children}
+  </Box>
+);
+
 const VisitSchedulePage = () => {
   const { outlets = [], frontliners = [], visitSchedules = [], saveVisitSchedule, deleteVisitSchedule } = useData();
 
@@ -180,35 +190,36 @@ const VisitSchedulePage = () => {
 
       {notice && <Alert severity={notice.severity} sx={{ mb: 2 }} onClose={() => setNotice(null)}>{notice.message}</Alert>}
 
-      {/* 1. KONFIGURASI DASAR - MOBILE FULL WIDTH */}
+      {/* 1. KONFIGURASI DASAR */}
       <Card sx={{ mb: 3, borderRadius: 2 }}>
         <CardContent sx={{ p: { xs: 2, md: 3 } }}>
           <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>1. Konfigurasi Dasar</Typography>
-          {/* ✅ MOBILE: xs={12} full width, baru di sm={6} bagi 2 kolom */}
           <Grid container spacing={2}>
+            {/* ✅ xs={12}: full width di mobile, label tidak terpotong */}
             <Grid item xs={12} sm={6}>
-              <FormControl fullWidth size="small">
-                <InputLabel id="md-label">Pilih Frontliner / MD</InputLabel>
-                <Select
-                  labelId="md-label"
-                  value={selectedFrontliner}
-                  label="Pilih Frontliner / MD"
-                  onChange={(e) => { setSelectedFrontliner(e.target.value); setSelectedOutlets([]); }}
-                >
-                  {safeFrontliners.map((fl) => <MenuItem key={fl} value={fl}>{fl}</MenuItem>)}
-                </Select>
-              </FormControl>
+              <FormField label="Pilih Frontliner / MD">
+                <FormControl fullWidth size="small">
+                  <Select
+                    value={selectedFrontliner}
+                    onChange={(e) => { setSelectedFrontliner(e.target.value); setSelectedOutlets([]); }}
+                    displayEmpty
+                  >
+                    <MenuItem value="" disabled>Pilih frontliner...</MenuItem>
+                    {safeFrontliners.map((fl) => <MenuItem key={fl} value={fl}>{fl}</MenuItem>)}
+                  </Select>
+                </FormControl>
+              </FormField>
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                size="small"
-                type="date"
-                label="Tanggal Kunjungan"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                InputLabelProps={{ shrink: true }}
-              />
+              <FormField label="Tanggal Kunjungan">
+                <TextField
+                  fullWidth
+                  size="small"
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                />
+              </FormField>
             </Grid>
           </Grid>
         </CardContent>
@@ -216,10 +227,9 @@ const VisitSchedulePage = () => {
 
       {selectedFrontliner && (
         <>
-          {/* 2. PENCARIAN & PEMILIHAN OUTLET - MOBILE STACK, DESKTOP SIDE-BY-SIDE */}
-          {/* ✅ Di mobile: column (stack), di md: row (side-by-side dengan stretch) */}
+          {/* 2. PENCARIAN & PEMILIHAN OUTLET */}
           <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3, mb: 3 }}>
-            {/* Kolom Kiri: Cari & Pilih */}
+            {/* Kolom Kiri */}
             <Box sx={{ flex: { md: '1 1 60%' }, width: '100%' }}>
               <Card sx={{ borderRadius: 2, height: '100%' }}>
                 <CardContent sx={{ p: { xs: 2, md: 3 }, display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -288,7 +298,7 @@ const VisitSchedulePage = () => {
               </Card>
             </Box>
 
-            {/* Kolom Kanan: Outlet Terpilih */}
+            {/* Kolom Kanan */}
             <Box sx={{ flex: { md: '1 1 40%' }, width: '100%' }}>
               <Card sx={{ borderRadius: 2, height: '100%', border: selectedOutlets.length === TARGET_OUTLETS ? '2px solid' : undefined, borderColor: 'success.main' }}>
                 <CardContent sx={{ p: { xs: 2, md: 3 }, display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -359,17 +369,17 @@ const VisitSchedulePage = () => {
             <CardContent sx={{ p: { xs: 2, md: 3 } }}>
               <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>3. Riwayat Jadwal Tersimpan</Typography>
 
-              {/* ✅ Filter tanggal: full width di mobile, max 300px di desktop */}
-              <Box sx={{ mb: 3, width: { xs: '100%', sm: 300 } }}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  type="date"
-                  label="Filter Tanggal"
-                  value={reviewDate}
-                  onChange={(e) => setReviewDate(e.target.value)}
-                  InputLabelProps={{ shrink: true }}
-                />
+              {/* ✅ Filter tanggal: label di atas, tidak bertumpuk */}
+              <Box sx={{ mb: 3, maxWidth: { xs: '100%', sm: 300 } }}>
+                <FormField label="Filter Tanggal">
+                  <TextField
+                    fullWidth
+                    size="small"
+                    type="date"
+                    value={reviewDate}
+                    onChange={(e) => setReviewDate(e.target.value)}
+                  />
+                </FormField>
               </Box>
 
               {filteredSchedules.length === 0 ? (
