@@ -8,8 +8,7 @@ import {
 } from '@mui/material';
 import {
   AddLocationAlt, CalendarMonth, CheckCircle, Close, Delete,
-  Edit, ExpandLess, ExpandMore, GpsFixed, NearMe, Save, Search,
-  WarningAmber
+  Edit, ExpandLess, ExpandMore, GpsFixed, Save, Search
 } from '@mui/icons-material';
 import { useData } from '../context/DataContext';
 
@@ -70,7 +69,6 @@ const VisitSchedulePage = () => {
   [frontliners]);
 
   const rtgCount = useMemo(() => selectedOutlets.filter(isRTG).length, [selectedOutlets]);
-  const remaining = TARGET_OUTLETS - selectedOutlets.length;
 
   const recommendedOutlets = useMemo(() => {
     const query = text(searchQuery).toLowerCase();
@@ -170,7 +168,7 @@ const VisitSchedulePage = () => {
   [visitSchedules, reviewDate]);
 
   return (
-    <Box sx={{ p: { xs: 1.5, md: 3 }, minWidth: 0, maxWidth: 1200, mx: 'auto' }}>
+    <Box sx={{ p: { xs: 1.5, md: 3 }, minWidth: 0, maxWidth: 1400, mx: 'auto' }}>
       {/* HEADER */}
       <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 3 }}>
         <CalendarMonth color="primary" sx={{ fontSize: 36 }} />
@@ -187,7 +185,7 @@ const VisitSchedulePage = () => {
         <CardContent sx={{ p: { xs: 2, md: 3 } }}>
           <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>1. Konfigurasi Dasar</Typography>
           <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12} sm={6}>
               <FormControl fullWidth size="small">
                 <InputLabel id="md-label">Pilih Frontliner / MD</InputLabel>
                 <Select
@@ -200,17 +198,15 @@ const VisitSchedulePage = () => {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={12} md={6}>
-              {/* ✅ Label selalu di atas, tidak floating di tengah */}
-              <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block', fontWeight: 600 }}>
-                Tanggal Kunjungan
-              </Typography>
+            <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
                 size="small"
                 type="date"
+                label="Tanggal Kunjungan"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
+                InputLabelProps={{ shrink: true }}
               />
             </Grid>
           </Grid>
@@ -220,20 +216,19 @@ const VisitSchedulePage = () => {
       {selectedFrontliner && (
         <>
           {/* 2. PENCARIAN & PEMILIHAN OUTLET */}
-          {/* ✅ Grid stretch agar card kiri & kanan sama tinggi */}
           <Grid container spacing={3} sx={{ alignItems: 'stretch' }}>
             {/* Kolom Kiri: Search & Rekomendasi */}
-            <Grid item xs={12} md={7} sx={{ display: 'flex' }}>
+            <Grid item xs={12} md={7}>
               <Card sx={{
                 borderRadius: 2,
                 border: '1px solid',
                 borderColor: 'divider',
-                width: '100%',
+                height: '100%',
                 display: 'flex',
                 flexDirection: 'column',
               }}>
                 <CardContent sx={{ p: { xs: 2, md: 3 }, flex: 1, display: 'flex', flexDirection: 'column' }}>
-                  <Typography variant="h6" fontWeight={700} sx={{ mb: 1 }}>2. Cari & Pilih Outlet</Typography>
+                  <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>2. Cari & Pilih Outlet</Typography>
 
                   {selectedOutlets.length > 0 && (
                     <Alert severity="info" sx={{ mb: 2 }}>
@@ -274,7 +269,7 @@ const VisitSchedulePage = () => {
                           return (
                             <Card key={key} variant="outlined" sx={{ mb: 1, borderColor: 'divider' }}>
                               <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-                                <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={1}>
+                                <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
                                   <Box sx={{ flex: 1, minWidth: 0 }}>
                                     <Typography fontWeight={700} noWrap>{outlet.outletName}</Typography>
                                     <Typography variant="caption" color="text.secondary">ID: {outlet.outletId}</Typography>
@@ -298,13 +293,13 @@ const VisitSchedulePage = () => {
               </Card>
             </Grid>
 
-            {/* Kolom Kanan: Outlet Terpilih & Validasi */}
-            <Grid item xs={12} md={5} sx={{ display: 'flex' }}>
+            {/* Kolom Kanan: Outlet Terpilih */}
+            <Grid item xs={12} md={5}>
               <Card sx={{
                 borderRadius: 2,
                 border: '1px solid',
                 borderColor: selectedOutlets.length === TARGET_OUTLETS ? 'success.main' : 'divider',
-                width: '100%',
+                height: '100%',
                 display: 'flex',
                 flexDirection: 'column',
               }}>
@@ -371,25 +366,23 @@ const VisitSchedulePage = () => {
 
           <Divider sx={{ my: 4 }} />
 
-          {/* 3. REVIEW & RIWAYAT JADWAL */}
+          {/* 3. RIWAYAT JADWAL */}
           <Card sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
             <CardContent sx={{ p: { xs: 2, md: 3 } }}>
-              <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2} sx={{ mb: 2 }}>
-                <Typography variant="h6" fontWeight={700}>3. Riwayat Jadwal Tersimpan</Typography>
-                {/* ✅ Filter tanggal: label di atas, full width */}
-                <Box sx={{ width: { xs: '100%', sm: 250, md: 300 } }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block', fontWeight: 600 }}>
-                    Filter Tanggal
-                  </Typography>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    type="date"
-                    value={reviewDate}
-                    onChange={(e) => setReviewDate(e.target.value)}
-                  />
-                </Box>
-              </Stack>
+              <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>3. Riwayat Jadwal Tersimpan</Typography>
+
+              {/* Filter Tanggal */}
+              <Box sx={{ mb: 3, maxWidth: 300 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  type="date"
+                  label="Filter Tanggal"
+                  value={reviewDate}
+                  onChange={(e) => setReviewDate(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Box>
 
               {filteredSchedules.length === 0 ? (
                 <Alert severity="info">Tidak ada jadwal yang ditemukan untuk filter ini.</Alert>
@@ -408,7 +401,7 @@ const VisitSchedulePage = () => {
                                 <Chip size="small" label={isFinal ? 'Final' : 'Draft'} color={isFinal ? 'success' : 'warning'} />
                               </Stack>
                               <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                                📅 {schedule.date} &nbsp;|&nbsp; 🏪 {schedule.totalOutlets} Outlet &nbsp;|&nbsp; ❄️ {schedule.rtgCount} RTG
+                                📅 {schedule.date} &nbsp;|&nbsp;  {schedule.totalOutlets} Outlet &nbsp;|&nbsp; ❄️ {schedule.rtgCount} RTG
                               </Typography>
                             </Box>
                             <Stack direction="row" spacing={1}>
@@ -449,7 +442,7 @@ const VisitSchedulePage = () => {
         </>
       )}
 
-      {/* Dialog Konfirmasi Hapus */}
+      {/* Dialog Hapus */}
       <Dialog open={deleteDialog.open} onClose={() => setDeleteDialog({ open: false, id: null })} maxWidth="xs" fullWidth>
         <DialogTitle>Hapus Jadwal?</DialogTitle>
         <DialogContent>
