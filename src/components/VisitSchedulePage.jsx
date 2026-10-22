@@ -61,11 +61,8 @@ const VisitSchedulePage = () => {
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState(null);
 
-  // State Review Jadwal
   const [reviewDate, setReviewDate] = useState('');
   const [deleteDialog, setDeleteDialog] = useState({ open: false, id: null });
-
-  // ✅ State untuk Collapse/Expand rekomendasi
   const [recommendationsExpanded, setRecommendationsExpanded] = useState(true);
 
   const safeFrontliners = useMemo(() =>
@@ -192,14 +189,29 @@ const VisitSchedulePage = () => {
           <Grid container spacing={2}>
             <Grid item xs={12} md={6}>
               <FormControl fullWidth size="small">
-                <InputLabel>Pilih Frontliner / MD</InputLabel>
-                <Select value={selectedFrontliner} label="Pilih Frontliner / MD" onChange={(e) => { setSelectedFrontliner(e.target.value); setSelectedOutlets([]); }}>
+                <InputLabel id="md-label">Pilih Frontliner / MD</InputLabel>
+                <Select
+                  labelId="md-label"
+                  value={selectedFrontliner}
+                  label="Pilih Frontliner / MD"
+                  onChange={(e) => { setSelectedFrontliner(e.target.value); setSelectedOutlets([]); }}
+                >
                   {safeFrontliners.map((fl) => <MenuItem key={fl} value={fl}>{fl}</MenuItem>)}
                 </Select>
               </FormControl>
             </Grid>
             <Grid item xs={12} md={6}>
-              <TextField fullWidth size="small" type="date" label="Tanggal Kunjungan" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} InputLabelProps={{ shrink: true }} />
+              {/* ✅ Label selalu di atas, tidak floating di tengah */}
+              <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block', fontWeight: 600 }}>
+                Tanggal Kunjungan
+              </Typography>
+              <TextField
+                fullWidth
+                size="small"
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+              />
             </Grid>
           </Grid>
         </CardContent>
@@ -208,11 +220,19 @@ const VisitSchedulePage = () => {
       {selectedFrontliner && (
         <>
           {/* 2. PENCARIAN & PEMILIHAN OUTLET */}
-          <Grid container spacing={3}>
+          {/* ✅ Grid stretch agar card kiri & kanan sama tinggi */}
+          <Grid container spacing={3} sx={{ alignItems: 'stretch' }}>
             {/* Kolom Kiri: Search & Rekomendasi */}
-            <Grid item xs={12} md={7}>
-              <Card sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider', height: '100%' }}>
-                <CardContent sx={{ p: { xs: 2, md: 3 } }}>
+            <Grid item xs={12} md={7} sx={{ display: 'flex' }}>
+              <Card sx={{
+                borderRadius: 2,
+                border: '1px solid',
+                borderColor: 'divider',
+                width: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+              }}>
+                <CardContent sx={{ p: { xs: 2, md: 3 }, flex: 1, display: 'flex', flexDirection: 'column' }}>
                   <Typography variant="h6" fontWeight={700} sx={{ mb: 1 }}>2. Cari & Pilih Outlet</Typography>
 
                   {selectedOutlets.length > 0 && (
@@ -222,13 +242,15 @@ const VisitSchedulePage = () => {
                   )}
 
                   <TextField
-                    fullWidth size="small" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+                    fullWidth
+                    size="small"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Cari nama atau ID outlet..."
                     InputProps={{ startAdornment: <Search sx={{ mr: 1, color: 'action.active' }} /> }}
                     sx={{ mb: 2 }}
                   />
 
-                  {/* ✅ Tombol Collapse/Expand */}
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                     <Typography variant="body2" color="text.secondary">
                       {recommendedOutlets.length} outlet ditemukan
@@ -242,8 +264,7 @@ const VisitSchedulePage = () => {
                     </Button>
                   </Box>
 
-                  {/* ✅ Collapse/Expand untuk daftar rekomendasi */}
-                  <Collapse in={recommendationsExpanded}>
+                  <Collapse in={recommendationsExpanded} sx={{ flex: 1 }}>
                     <Box sx={{ maxHeight: 500, overflowY: 'auto', pr: 1 }}>
                       {recommendedOutlets.length === 0 ? (
                         <Alert severity="info">Tidak ada outlet yang cocok atau semua outlet sudah dipilih.</Alert>
@@ -278,9 +299,16 @@ const VisitSchedulePage = () => {
             </Grid>
 
             {/* Kolom Kanan: Outlet Terpilih & Validasi */}
-            <Grid item xs={12} md={5}>
-              <Card sx={{ borderRadius: 2, border: '1px solid', borderColor: selectedOutlets.length === TARGET_OUTLETS ? 'success.main' : 'divider', height: '100%' }}>
-                <CardContent sx={{ p: { xs: 2, md: 3 } }}>
+            <Grid item xs={12} md={5} sx={{ display: 'flex' }}>
+              <Card sx={{
+                borderRadius: 2,
+                border: '1px solid',
+                borderColor: selectedOutlets.length === TARGET_OUTLETS ? 'success.main' : 'divider',
+                width: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+              }}>
+                <CardContent sx={{ p: { xs: 2, md: 3 }, flex: 1, display: 'flex', flexDirection: 'column' }}>
                   <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
                     <Typography variant="h6" fontWeight={700}>Outlet Terpilih</Typography>
                     <Chip label={`${selectedOutlets.length}/${TARGET_OUTLETS}`} color={selectedOutlets.length === TARGET_OUTLETS ? 'success' : 'default'} />
@@ -292,7 +320,7 @@ const VisitSchedulePage = () => {
                     </Alert>
                   )}
 
-                  <TableContainer sx={{ maxHeight: 400, mb: 2 }}>
+                  <TableContainer sx={{ maxHeight: 400, mb: 2, flex: 1 }}>
                     <Table size="small" stickyHeader>
                       <TableHead>
                         <TableRow>
@@ -323,7 +351,7 @@ const VisitSchedulePage = () => {
                     </Table>
                   </TableContainer>
 
-                  <Stack spacing={1}>
+                  <Stack spacing={1} sx={{ mt: 'auto' }}>
                     <Button fullWidth variant="outlined" startIcon={saving ? <CircularProgress size={18} /> : <Save />} disabled={saving || selectedOutlets.length === 0} onClick={() => handleSave('draft')}>
                       Simpan Draft
                     </Button>
@@ -348,16 +376,19 @@ const VisitSchedulePage = () => {
             <CardContent sx={{ p: { xs: 2, md: 3 } }}>
               <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2} sx={{ mb: 2 }}>
                 <Typography variant="h6" fontWeight={700}>3. Riwayat Jadwal Tersimpan</Typography>
-                {/* ✅ Filter tanggal diperpanjang */}
-                <TextField
-                  size="small"
-                  type="date"
-                  label="Filter Tanggal"
-                  value={reviewDate}
-                  onChange={(e) => setReviewDate(e.target.value)}
-                  InputLabelProps={{ shrink: true }}
-                  sx={{ width: { xs: '100%', sm: 250, md: 300 } }}
-                />
+                {/* ✅ Filter tanggal: label di atas, full width */}
+                <Box sx={{ width: { xs: '100%', sm: 250, md: 300 } }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block', fontWeight: 600 }}>
+                    Filter Tanggal
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    type="date"
+                    value={reviewDate}
+                    onChange={(e) => setReviewDate(e.target.value)}
+                  />
+                </Box>
               </Stack>
 
               {filteredSchedules.length === 0 ? (
@@ -386,7 +417,6 @@ const VisitSchedulePage = () => {
                             </Stack>
                           </Stack>
 
-                          {/* ✅ List outlet diperkecil agar semua terlihat */}
                           <Divider sx={{ my: 1.5 }} />
                           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                             {scheduleOutlets.map((outlet, index) => (
