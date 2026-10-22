@@ -4,11 +4,12 @@ import {
   Dialog, DialogActions, DialogContent, DialogTitle, Divider,
   FormControl, Grid, IconButton, InputLabel, MenuItem, Select,
   Stack, Table, TableBody, TableCell, TableContainer, TableHead,
-  TableRow, TextField, Typography
+  TableRow, TextField, Typography, Collapse
 } from '@mui/material';
 import {
   AddLocationAlt, CalendarMonth, CheckCircle, Close, Delete,
-  Edit, GpsFixed, NearMe, Save, Search, WarningAmber
+  Edit, ExpandLess, ExpandMore, GpsFixed, NearMe, Save, Search,
+  WarningAmber
 } from '@mui/icons-material';
 import { useData } from '../context/DataContext';
 
@@ -52,11 +53,8 @@ const makeOutletSnapshot = (outlet) => ({
 const VisitSchedulePage = () => {
   const { outlets = [], frontliners = [], visitSchedules = [], saveVisitSchedule, deleteVisitSchedule } = useData();
 
-  // State Konfigurasi
   const [selectedFrontliner, setSelectedFrontliner] = useState('');
   const [selectedDate, setSelectedDate] = useState(todayLocal());
-  
-  // State Pemilihan Outlet
   const [selectedOutlets, setSelectedOutlets] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [editingId, setEditingId] = useState(null);
@@ -67,14 +65,16 @@ const VisitSchedulePage = () => {
   const [reviewDate, setReviewDate] = useState('');
   const [deleteDialog, setDeleteDialog] = useState({ open: false, id: null });
 
-  const safeFrontliners = useMemo(() => 
-    [...new Set(frontliners.map(text).filter(Boolean))].sort((a, b) => a.localeCompare(b)), 
+  // ✅ State untuk Collapse/Expand rekomendasi
+  const [recommendationsExpanded, setRecommendationsExpanded] = useState(true);
+
+  const safeFrontliners = useMemo(() =>
+    [...new Set(frontliners.map(text).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
   [frontliners]);
 
   const rtgCount = useMemo(() => selectedOutlets.filter(isRTG).length, [selectedOutlets]);
   const remaining = TARGET_OUTLETS - selectedOutlets.length;
 
-  // ✅ Logika Rekomendasi Terdekat
   const recommendedOutlets = useMemo(() => {
     const query = text(searchQuery).toLowerCase();
     const lastOutlet = selectedOutlets[selectedOutlets.length - 1];
@@ -82,11 +82,8 @@ const VisitSchedulePage = () => {
 
     return outlets
       .filter((outlet) => {
-        // Hanya tampilkan outlet milik frontliner yang dipilih
         if (selectedFrontliner && text(outlet.frontliner) !== selectedFrontliner) return false;
-        // Jangan tampilkan yang sudah dipilih
         if (selectedKeys.has(getOutletKey(outlet))) return false;
-        // Filter pencarian
         const name = text(outlet.outletName).toLowerCase();
         const id = text(outlet.outletId).toLowerCase();
         if (query && !name.includes(query) && !id.includes(query)) return false;
@@ -112,7 +109,7 @@ const VisitSchedulePage = () => {
       return;
     }
     setSelectedOutlets((prev) => [...prev, makeOutletSnapshot(outlet)]);
-    setSearchQuery(''); // Reset search agar fokus ke rekomendasi terdekat
+    setSearchQuery('');
     notify('Outlet ditambahkan.');
   };
 
@@ -171,7 +168,7 @@ const VisitSchedulePage = () => {
   };
 
   const formatDistance = (d) => d == null ? 'Jarak tidak tersedia' : d < 1 ? `${Math.round(d * 1000)} m` : `${d.toFixed(1)} km`;
-  const filteredSchedules = useMemo(() => 
+  const filteredSchedules = useMemo(() =>
     visitSchedules.filter(s => !reviewDate || s.date === reviewDate).sort((a, b) => b.date.localeCompare(a.date)),
   [visitSchedules, reviewDate]);
 
@@ -217,7 +214,7 @@ const VisitSchedulePage = () => {
               <Card sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider', height: '100%' }}>
                 <CardContent sx={{ p: { xs: 2, md: 3 } }}>
                   <Typography variant="h6" fontWeight={700} sx={{ mb: 1 }}>2. Cari & Pilih Outlet</Typography>
-                  
+
                   {selectedOutlets.length > 0 && (
                     <Alert severity="info" sx={{ mb: 2 }}>
                       Rekomendasi diurutkan berdasarkan jarak dari: <b>{selectedOutlets[selectedOutlets.length - 1].outletName}</b>
@@ -231,34 +228,51 @@ const VisitSchedulePage = () => {
                     sx={{ mb: 2 }}
                   />
 
-                  <Box sx={{ maxHeight: 500, overflowY: 'auto', pr: 1 }}>
-                    {recommendedOutlets.length === 0 ? (
-                      <Alert severity="info">Tidak ada outlet yang cocok atau semua outlet sudah dipilih.</Alert>
-                    ) : (
-                      recommendedOutlets.slice(0, 50).map(({ outlet, distance }) => {
-                        const key = getOutletKey(outlet);
-                        return (
-                          <Card key={key} variant="outlined" sx={{ mb: 1, borderColor: 'divider' }}>
-                            <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-                              <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={1}>
-                                <Box sx={{ flex: 1, minWidth: 0 }}>
-                                  <Typography fontWeight={700} noWrap>{outlet.outletName}</Typography>
-                                  <Typography variant="caption" color="text.secondary">ID: {outlet.outletId}</Typography>
-                                  <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
-                                    <Chip size="small" icon={<GpsFixed />} label={formatDistance(distance)} />
-                                    {isRTG(outlet) && <Chip size="small" label="RTG" color="warning" />}
-                                  </Stack>
-                                </Box>
-                                <Button size="small" variant="contained" startIcon={<AddLocationAlt />} onClick={() => handleAddOutlet(outlet)}>
-                                  Pilih
-                                </Button>
-                              </Stack>
-                            </CardContent>
-                          </Card>
-                        );
-                      })
-                    )}
+                  {/* ✅ Tombol Collapse/Expand */}
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      {recommendedOutlets.length} outlet ditemukan
+                    </Typography>
+                    <Button
+                      size="small"
+                      startIcon={recommendationsExpanded ? <ExpandLess /> : <ExpandMore />}
+                      onClick={() => setRecommendationsExpanded(!recommendationsExpanded)}
+                    >
+                      {recommendationsExpanded ? 'Sembunyikan' : 'Tampilkan'}
+                    </Button>
                   </Box>
+
+                  {/* ✅ Collapse/Expand untuk daftar rekomendasi */}
+                  <Collapse in={recommendationsExpanded}>
+                    <Box sx={{ maxHeight: 500, overflowY: 'auto', pr: 1 }}>
+                      {recommendedOutlets.length === 0 ? (
+                        <Alert severity="info">Tidak ada outlet yang cocok atau semua outlet sudah dipilih.</Alert>
+                      ) : (
+                        recommendedOutlets.slice(0, 50).map(({ outlet, distance }) => {
+                          const key = getOutletKey(outlet);
+                          return (
+                            <Card key={key} variant="outlined" sx={{ mb: 1, borderColor: 'divider' }}>
+                              <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                                <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={1}>
+                                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                                    <Typography fontWeight={700} noWrap>{outlet.outletName}</Typography>
+                                    <Typography variant="caption" color="text.secondary">ID: {outlet.outletId}</Typography>
+                                    <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
+                                      <Chip size="small" icon={<GpsFixed />} label={formatDistance(distance)} />
+                                      {isRTG(outlet) && <Chip size="small" label="RTG" color="warning" />}
+                                    </Stack>
+                                  </Box>
+                                  <Button size="small" variant="contained" startIcon={<AddLocationAlt />} onClick={() => handleAddOutlet(outlet)}>
+                                    Pilih
+                                  </Button>
+                                </Stack>
+                              </CardContent>
+                            </Card>
+                          );
+                        })
+                      )}
+                    </Box>
+                  </Collapse>
                 </CardContent>
               </Card>
             </Grid>
@@ -272,7 +286,6 @@ const VisitSchedulePage = () => {
                     <Chip label={`${selectedOutlets.length}/${TARGET_OUTLETS}`} color={selectedOutlets.length === TARGET_OUTLETS ? 'success' : 'default'} />
                   </Stack>
 
-                  {/* Validasi RTG */}
                   {rtgCount > MAX_RTG && (
                     <Alert severity="warning" sx={{ mb: 2 }}>
                       Peringatan: Anda telah memilih {rtgCount} outlet RTG. Maksimal rekomendasi adalah {MAX_RTG}.
@@ -335,7 +348,16 @@ const VisitSchedulePage = () => {
             <CardContent sx={{ p: { xs: 2, md: 3 } }}>
               <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2} sx={{ mb: 2 }}>
                 <Typography variant="h6" fontWeight={700}>3. Riwayat Jadwal Tersimpan</Typography>
-                <TextField size="small" type="date" label="Filter Tanggal" value={reviewDate} onChange={(e) => setReviewDate(e.target.value)} InputLabelProps={{ shrink: true }} sx={{ width: { xs: '100%', sm: 200 } }} />
+                {/* ✅ Filter tanggal diperpanjang */}
+                <TextField
+                  size="small"
+                  type="date"
+                  label="Filter Tanggal"
+                  value={reviewDate}
+                  onChange={(e) => setReviewDate(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  sx={{ width: { xs: '100%', sm: 250, md: 300 } }}
+                />
               </Stack>
 
               {filteredSchedules.length === 0 ? (
@@ -344,6 +366,7 @@ const VisitSchedulePage = () => {
                 <Stack spacing={2}>
                   {filteredSchedules.map((schedule) => {
                     const isFinal = schedule.status === 'final';
+                    const scheduleOutlets = Array.isArray(schedule.outlets) ? schedule.outlets : [];
                     return (
                       <Card key={schedule.id} variant="outlined" sx={{ borderColor: isFinal ? 'success.light' : 'warning.light' }}>
                         <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
@@ -356,18 +379,35 @@ const VisitSchedulePage = () => {
                               <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                                 📅 {schedule.date} &nbsp;|&nbsp; 🏪 {schedule.totalOutlets} Outlet &nbsp;|&nbsp; ❄️ {schedule.rtgCount} RTG
                               </Typography>
-                              <Stack direction="row" spacing={0.5} flexWrap="wrap">
-                                {(schedule.outlets || []).slice(0, 5).map((o, i) => (
-                                  <Chip key={i} size="small" variant="outlined" label={`${i + 1}. ${o.outletName}`} />
-                                ))}
-                                {(schedule.outlets || []).length > 5 && <Chip size="small" label={`+${(schedule.outlets || []).length - 5} lagi`} />}
-                              </Stack>
                             </Box>
                             <Stack direction="row" spacing={1}>
                               <Button size="small" variant="outlined" startIcon={<Edit />} onClick={() => handleLoadSchedule(schedule)}>Edit</Button>
                               <Button size="small" variant="outlined" color="error" startIcon={<Delete />} onClick={() => setDeleteDialog({ open: true, id: schedule.id })}>Hapus</Button>
                             </Stack>
                           </Stack>
+
+                          {/* ✅ List outlet diperkecil agar semua terlihat */}
+                          <Divider sx={{ my: 1.5 }} />
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                            {scheduleOutlets.map((outlet, index) => (
+                              <Chip
+                                key={`${getOutletKey(outlet)}-${index}`}
+                                size="small"
+                                variant="outlined"
+                                label={`${index + 1}. ${outlet.outletName}`}
+                                sx={{
+                                  fontSize: '0.7rem',
+                                  height: 22,
+                                  '& .MuiChip-label': {
+                                    px: 0.8,
+                                    maxWidth: 150,
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                  }
+                                }}
+                              />
+                            ))}
+                          </Box>
                         </CardContent>
                       </Card>
                     );
