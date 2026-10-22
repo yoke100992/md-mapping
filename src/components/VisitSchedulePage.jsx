@@ -180,10 +180,11 @@ const VisitSchedulePage = () => {
 
       {notice && <Alert severity={notice.severity} sx={{ mb: 2 }} onClose={() => setNotice(null)}>{notice.message}</Alert>}
 
-      {/* 1. KONFIGURASI DASAR */}
-      <Card sx={{ mb: 3, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+      {/* 1. KONFIGURASI DASAR - MOBILE FULL WIDTH */}
+      <Card sx={{ mb: 3, borderRadius: 2 }}>
         <CardContent sx={{ p: { xs: 2, md: 3 } }}>
           <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>1. Konfigurasi Dasar</Typography>
+          {/* ✅ MOBILE: xs={12} full width, baru di sm={6} bagi 2 kolom */}
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6}>
               <FormControl fullWidth size="small">
@@ -215,19 +216,13 @@ const VisitSchedulePage = () => {
 
       {selectedFrontliner && (
         <>
-          {/* 2. PENCARIAN & PEMILIHAN OUTLET */}
-          <Grid container spacing={3} sx={{ alignItems: 'stretch' }}>
-            {/* Kolom Kiri: Search & Rekomendasi */}
-            <Grid item xs={12} md={7}>
-              <Card sx={{
-                borderRadius: 2,
-                border: '1px solid',
-                borderColor: 'divider',
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-              }}>
-                <CardContent sx={{ p: { xs: 2, md: 3 }, flex: 1, display: 'flex', flexDirection: 'column' }}>
+          {/* 2. PENCARIAN & PEMILIHAN OUTLET - MOBILE STACK, DESKTOP SIDE-BY-SIDE */}
+          {/* ✅ Di mobile: column (stack), di md: row (side-by-side dengan stretch) */}
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3, mb: 3 }}>
+            {/* Kolom Kiri: Cari & Pilih */}
+            <Box sx={{ flex: { md: '1 1 60%' }, width: '100%' }}>
+              <Card sx={{ borderRadius: 2, height: '100%' }}>
+                <CardContent sx={{ p: { xs: 2, md: 3 }, display: 'flex', flexDirection: 'column', height: '100%' }}>
                   <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>2. Cari & Pilih Outlet</Typography>
 
                   {selectedOutlets.length > 0 && (
@@ -291,19 +286,12 @@ const VisitSchedulePage = () => {
                   </Collapse>
                 </CardContent>
               </Card>
-            </Grid>
+            </Box>
 
             {/* Kolom Kanan: Outlet Terpilih */}
-            <Grid item xs={12} md={5}>
-              <Card sx={{
-                borderRadius: 2,
-                border: '1px solid',
-                borderColor: selectedOutlets.length === TARGET_OUTLETS ? 'success.main' : 'divider',
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-              }}>
-                <CardContent sx={{ p: { xs: 2, md: 3 }, flex: 1, display: 'flex', flexDirection: 'column' }}>
+            <Box sx={{ flex: { md: '1 1 40%' }, width: '100%' }}>
+              <Card sx={{ borderRadius: 2, height: '100%', border: selectedOutlets.length === TARGET_OUTLETS ? '2px solid' : undefined, borderColor: 'success.main' }}>
+                <CardContent sx={{ p: { xs: 2, md: 3 }, display: 'flex', flexDirection: 'column', height: '100%' }}>
                   <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
                     <Typography variant="h6" fontWeight={700}>Outlet Terpilih</Typography>
                     <Chip label={`${selectedOutlets.length}/${TARGET_OUTLETS}`} color={selectedOutlets.length === TARGET_OUTLETS ? 'success' : 'default'} />
@@ -361,18 +349,18 @@ const VisitSchedulePage = () => {
                   </Stack>
                 </CardContent>
               </Card>
-            </Grid>
-          </Grid>
+            </Box>
+          </Box>
 
           <Divider sx={{ my: 4 }} />
 
           {/* 3. RIWAYAT JADWAL */}
-          <Card sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+          <Card sx={{ borderRadius: 2 }}>
             <CardContent sx={{ p: { xs: 2, md: 3 } }}>
               <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>3. Riwayat Jadwal Tersimpan</Typography>
 
-              {/* Filter Tanggal */}
-              <Box sx={{ mb: 3, maxWidth: 300 }}>
+              {/* ✅ Filter tanggal: full width di mobile, max 300px di desktop */}
+              <Box sx={{ mb: 3, width: { xs: '100%', sm: 300 } }}>
                 <TextField
                   fullWidth
                   size="small"
@@ -395,8 +383,8 @@ const VisitSchedulePage = () => {
                       <Card key={schedule.id} variant="outlined" sx={{ borderColor: isFinal ? 'success.light' : 'warning.light' }}>
                         <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
                           <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2}>
-                            <Box sx={{ flex: 1 }}>
-                              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
+                            <Box sx={{ flex: 1, minWidth: 0 }}>
+                              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }} flexWrap="wrap">
                                 <Typography fontWeight={700}>{schedule.frontliner}</Typography>
                                 <Chip size="small" label={isFinal ? 'Final' : 'Draft'} color={isFinal ? 'success' : 'warning'} />
                               </Stack>
@@ -404,7 +392,7 @@ const VisitSchedulePage = () => {
                                 📅 {schedule.date} &nbsp;|&nbsp;  {schedule.totalOutlets} Outlet &nbsp;|&nbsp; ❄️ {schedule.rtgCount} RTG
                               </Typography>
                             </Box>
-                            <Stack direction="row" spacing={1}>
+                            <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
                               <Button size="small" variant="outlined" startIcon={<Edit />} onClick={() => handleLoadSchedule(schedule)}>Edit</Button>
                               <Button size="small" variant="outlined" color="error" startIcon={<Delete />} onClick={() => setDeleteDialog({ open: true, id: schedule.id })}>Hapus</Button>
                             </Stack>
