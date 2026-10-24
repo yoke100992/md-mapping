@@ -749,13 +749,13 @@ const ManageOutletsPage = () => {
           >
             {/* SEARCH */}
             <TextField
-              label="Cari Nama / ID"
+              label="Cari Nama Outlet / Kecamatan / ID Outlet"
               size="small"
               value={searchQuery}
               onChange={(event) =>
                 setSearchQuery(event.target.value)
               }
-              placeholder="Ketik nama atau ID outlet..."
+              placeholder="Ketik nama outlet / kecamatan atau ID outlet..."
               sx={{
                 flexGrow: 1,
                 minWidth: { xs: '100%', sm: 200 },
