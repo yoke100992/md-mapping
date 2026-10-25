@@ -14,6 +14,7 @@ export const AVAILABLE_PAGES = [
     { id: 'trec-upload', label: 'Upload TREC', path: '/trec-upload' },
     { id: 'monitoring', label: 'Monitoring Kunjungan', path: '/monitoring' },
     { id: 'template', label: 'Download Template', path: '/template' },
+{ id: 'trec-monitoring', label: 'TREC Monitoring', path: '/trec-monitoring' },
     { id: 'settings', label: 'Lock Settings', path: '/settings' },
 ];
 
