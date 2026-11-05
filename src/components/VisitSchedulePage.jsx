@@ -4,14 +4,14 @@ import {
   Dialog, DialogActions, DialogContent, DialogTitle, Divider,
   FormControl, Grid, IconButton, InputLabel, MenuItem, Select,
   Stack, Table, TableBody, TableCell, TableContainer, TableHead,
-  TableRow, TextField, Typography, Collapse
+  TableRow, TextField, Typography, Collapse, Autocomplete // ✅ Ditambahkan Autocomplete
 } from '@mui/material';
 import {
   AddLocationAlt, CalendarMonth, CheckCircle, Close, Delete,
   Edit, ExpandLess, ExpandMore, GpsFixed, Save, Search, Download
 } from '@mui/icons-material';
 import { useData } from '../context/DataContext';
-import * as XLSX from 'xlsx'; // Pastikan sudah install: npm install xlsx
+import * as XLSX from 'xlsx';
 
 const TARGET_OUTLETS = 13;
 const MAX_RTG = 4;
@@ -70,7 +70,10 @@ const VisitSchedulePage = () => {
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState(null);
 
+  // ✅ State untuk Filter Riwayat
   const [reviewDate, setReviewDate] = useState('');
+  const [reviewFrontliner, setReviewFrontliner] = useState(''); 
+  
   const [deleteDialog, setDeleteDialog] = useState({ open: false, id: null });
   const [recommendationsExpanded, setRecommendationsExpanded] = useState(true);
 
@@ -128,6 +131,7 @@ const VisitSchedulePage = () => {
     setSelectedOutlets(Array.isArray(schedule.outlets) ? schedule.outlets.map(makeOutletSnapshot) : []);
     setEditingId(schedule.id);
     setReviewDate('');
+    setReviewFrontliner(''); // Reset filter saat load edit
     window.scrollTo({ top: 0, behavior: 'smooth' });
     notify('Jadwal dimuat untuk diedit.', 'info');
   };
@@ -172,7 +176,6 @@ const VisitSchedulePage = () => {
     }
   };
 
-  // ✅ FUNGSI EXPORT KE EXCEL (RAW DATA)
   const handleExportToExcel = () => {
     if (filteredSchedules.length === 0) {
       notify('Tidak ada data jadwal untuk diexport.', 'warning');
@@ -180,11 +183,8 @@ const VisitSchedulePage = () => {
     }
 
     const excelData = [];
-
-    // Flatten data: 1 baris = 1 outlet dalam 1 jadwal
     filteredSchedules.forEach((schedule) => {
       const scheduleOutlets = Array.isArray(schedule.outlets) ? schedule.outlets : [];
-      
       scheduleOutlets.forEach((outlet, index) => {
         excelData.push({
           'Tanggal': schedule.date,
@@ -201,12 +201,10 @@ const VisitSchedulePage = () => {
       });
     });
 
-    // Buat Worksheet dan Workbook
     const ws = XLSX.utils.json_to_sheet(excelData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Jadwal_Kunjungan_Raw');
 
-    // Download file
     const fileName = `Jadwal_Kunjungan_Raw_${reviewDate || 'Semua_Tanggal'}.xlsx`;
     XLSX.writeFile(wb, fileName);
     notify('File Excel berhasil didownload!', 'success');
@@ -214,9 +212,14 @@ const VisitSchedulePage = () => {
 
   const formatDistance = (d) => d == null ? 'Jarak tidak tersedia' : d < 1 ? `${Math.round(d * 1000)} m` : `${d.toFixed(1)} km`;
   
+  // ✅ UPDATE: Filter sekarang mencakup Tanggal DAN Frontliner
   const filteredSchedules = useMemo(() =>
-    visitSchedules.filter(s => !reviewDate || s.date === reviewDate).sort((a, b) => b.date.localeCompare(a.date)),
-  [visitSchedules, reviewDate]);
+    visitSchedules.filter(s => {
+      if (reviewDate && s.date !== reviewDate) return false;
+      if (reviewFrontliner && s.frontliner !== reviewFrontliner) return false;
+      return true;
+    }).sort((a, b) => b.date.localeCompare(a.date)),
+  [visitSchedules, reviewDate, reviewFrontliner]);
 
   return (
     <Box sx={{ p: { xs: 1.5, md: 3 }, minWidth: 0, maxWidth: 1400, mx: 'auto' }}>
@@ -407,7 +410,7 @@ const VisitSchedulePage = () => {
           {/* 3. RIWAYAT JADWAL */}
           <Card sx={{ borderRadius: 2 }}>
             <CardContent sx={{ p: { xs: 2, md: 3 } }}>
-              {/* ✅ Header dengan Tombol Download */}
+              {/* Header dengan Tombol Download */}
               <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2} sx={{ mb: 3 }}>
                 <Typography variant="h6" fontWeight={700}>3. Riwayat Jadwal Tersimpan</Typography>
                 <Button 
@@ -420,18 +423,34 @@ const VisitSchedulePage = () => {
                 </Button>
               </Stack>
 
-              {/* Filter tanggal */}
-              <Box sx={{ mb: 3, maxWidth: { xs: '100%', sm: 300 } }}>
-                <FormField label="Filter Tanggal">
-                  <TextField
-                    fullWidth
-                    size="small"
-                    type="date"
-                    value={reviewDate}
-                    onChange={(e) => setReviewDate(e.target.value)}
-                  />
-                </FormField>
-              </Box>
+              {/* ✅ Filter Tanggal & Frontliner Berdampingan */}
+              <Grid container spacing={2} sx={{ mb: 3 }}>
+                <Grid item xs={12} sm={6}>
+                  <FormField label="Filter Tanggal">
+                    <TextField
+                      fullWidth
+                      size="small"
+                      type="date"
+                      value={reviewDate}
+                      onChange={(e) => setReviewDate(e.target.value)}
+                    />
+                  </FormField>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <FormField label="Filter Frontliner">
+                    <Autocomplete
+                      fullWidth
+                      size="small"
+                      options={safeFrontliners}
+                      value={reviewFrontliner ? reviewFrontliner : null}
+                      onChange={(e, newValue) => setReviewFrontliner(newValue || '')}
+                      renderInput={(params) => (
+                        <TextField {...params} placeholder="Semua Frontliner" />
+                      )}
+                    />
+                  </FormField>
+                </Grid>
+              </Grid>
 
               {filteredSchedules.length === 0 ? (
                 <Alert severity="info">Tidak ada jadwal yang ditemukan untuk filter ini.</Alert>
